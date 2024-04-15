@@ -1,0 +1,26 @@
+[project]
+name = "mujoco_sysid"
+description = "Mujoco System Identification tools"
+version = "0.1.0"
+authors = [
+    { name = "Lev Kozlov", email = "kozlov.l.a10@gmail.com" },
+    { name = "Simeon Nedelchev", email = "simkaned@gmail.com" },
+]
+dependencies = ["mujoco", "numpy-quaternion", "numpy", "dm-control"]
+readme = "README.md"
+requires-python = ">=3.10"
+
+
+[project.urls]
+homepage = "https://github.com/lvjonok/mujoco-sysid"
+repository = "https://github.com/lvjonok/mujoco-sysid.git"
+
+[build-system]
+requires = ["setuptools>=43.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mujoco_sysid"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
