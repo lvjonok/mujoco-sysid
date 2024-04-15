@@ -56,29 +56,27 @@ def test_acceleration():
         np.testing.assert_allclose(pinacc, mjacc, atol=1e-6)
 
 
-# TODO: in this test linear jacobian does not match with pinocchio
-# def test_jacobian():
-#     q = np.random.randn(mjmodel.nq)
-#     v = np.random.randn(mjmodel.nv)
-#     dv = np.random.randn(mjmodel.nv)
+def test_jacobian():
+    q = np.random.randn(mjmodel.nq)
+    v = np.random.randn(mjmodel.nv)
+    dv = np.random.randn(mjmodel.nv)
 
-#     mjdata.qpos[:] = q.copy()
-#     mjdata.qvel[:] = v.copy()
-#     mjdata.qacc[:] = dv.copy()
+    mjdata.qpos[:] = q.copy()
+    mjdata.qvel[:] = v.copy()
+    mjdata.qacc[:] = dv.copy()
 
-#     pin.computeAllTerms(pinmodel, pindata, q, v)
-#     pin.forwardKinematics(pinmodel, pindata, q, v, dv)
+    pin.computeAllTerms(pinmodel, pindata, q, v)
+    pin.forwardKinematics(pinmodel, pindata, q, v, dv)
 
-#     mujoco.mj_inverse(mjmodel, mjdata)
-#     mujoco.mj_rnePostConstraint(mjmodel, mjdata)
+    mujoco.mj_inverse(mjmodel, mjdata)
+    mujoco.mj_rnePostConstraint(mjmodel, mjdata)
 
-#     for idx in range(mjmodel.nv):
-#         idx = 4
-#         jacobian_pin = pin.getJointJacobian(pinmodel, pindata, idx, pin.LOCAL)
+    for idx in range(mjmodel.nv):
+        jacobian_pin = pin.getJointJacobian(pinmodel, pindata, idx, pin.LOCAL)
 
-#         jacobian_mj = jacobian(mjmodel, mjdata, idx)
+        jacobian_mj = jacobian(mjmodel, mjdata, idx)
 
-#         np.testing.assert_allclose(jacobian_pin, jacobian_mj, atol=1e-6)
+        np.testing.assert_allclose(jacobian_pin, jacobian_mj, atol=1e-6)
 
 
 def test_joint_regressor():

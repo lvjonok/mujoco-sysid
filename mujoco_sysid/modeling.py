@@ -108,23 +108,14 @@ def jacobian(model, data, idx):
     jac_lin = np.zeros((3, model.nv))
     jac_rot = np.zeros((3, model.nv))
 
-    rotation = data.xmat[idx + 2].reshape(3, 3).T.copy()
+    rotation = data.xmat[idx + 1].reshape(3, 3).T.copy()
 
-    mujoco.mj_jacPointAxis(
-        model,
-        data,
-        jac_lin,
-        None,
-        data.xanchor[idx],
-        data.xaxis[idx],
-        idx + 1,
-    )
     mujoco.mj_jacBody(
         model,
         data,
-        None,
+        jac_lin,
         jac_rot,
-        idx + 2,
+        idx + 1,
     )
 
     return np.vstack((rotation @ jac_lin, rotation @ jac_rot))
@@ -143,9 +134,9 @@ def mj_jointRegressor(mj_model, mj_data):
         # calculate cody regressors
         body_regressors[6 * i : 6 * (i + 1), 10 * i : 10 * (i + 1)] = mj_bodyRegressor(
             mj_model, mj_data, i + 1
-        )  # regressor_body(i+1)
+        )
 
-        col_jac[6 * i : 6 * i + 6, :] = jacobian(mj_model, mj_data, i)
+        col_jac[6 * i : 6 * i + 6, :] = jacobian(mj_model, mj_data, i + 1)
 
     joint_regressor = col_jac.T @ body_regressors
     return joint_regressor
