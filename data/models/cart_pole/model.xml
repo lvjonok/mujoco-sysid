@@ -1,0 +1,21 @@
+<mujoco model="cart_pole">
+    <compiler angle="radian" autolimits="true"/>
+    <statistic meansize="0.262151" extent="0.636603" center="0 0 -0.231699"/>
+    <worldbody>
+        <body name="cart" pos="0 0 1">
+            <inertial pos="0 0 0" mass="0.5" diaginertia="0.0166667 0.0166667 0.0166667"/>
+            <joint name="cart_joint" pos="0 0 0" axis="1 0 0" type="slide" range="-100 100"/>
+            <geom size="0.05 0.05 0.05" type="box" rgba="0 0 0.8 1"/>
+            <body name="pole">
+                <inertial pos="0 0 -0.5" mass="0.1" diaginertia="0.0066 0.0066 0.0066"/>
+                <joint name="pole_joint" pos="0 0 0" axis="0 1 0" range="-600.283 600.283"/>
+                <geom size="0.01 0.25" pos="0 0 -0.25" type="cylinder" rgba="0 0 0 1"/>
+                <geom size="0.05" pos="0 0 -0.5" rgba="1 0 0 1"/>
+            </body>
+        </body>
+    </worldbody>
+
+    <actuator>
+        <motor joint="cart_joint"/>
+    </actuator>
+</mujoco>
