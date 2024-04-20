@@ -13,6 +13,7 @@ from robot_descriptions.panda_mj_description import MJCF_PATH
 # MJCF_PATH += "scene.xml"
 
 # Load the model
+print(MJCF_PATH)
 model = mujoco.MjModel.from_xml_path(MJCF_PATH)
 data = mujoco.MjData(model)
 
@@ -29,7 +30,8 @@ for jnt_idx in range(model.nq - 2):
 np.random.seed(0)
 
 # each 2 seconds we want to change the target position
-phase_time = 1.0
+phase_time = 5.0
+num_of_phases = 10
 phases = 0
 kp = 20
 kd = 10
@@ -39,7 +41,7 @@ with (
     mujoco.viewer.launch_passive(model, data) as viewer,
     SimLogger(model, data, output_filepath="data/panda_data.json") as logger,
 ):
-    while viewer.is_running() and data.time < 10:
+    while viewer.is_running() and data.time < num_of_phases*phase_time:
         step_start = time.time()
 
         if data.time > phase_time * phases:
@@ -65,3 +67,5 @@ with (
 
         # Pick up changes to the physics state, apply perturbations, update options from GUI.
         viewer.sync()
+
+        time.sleep(0.001)
