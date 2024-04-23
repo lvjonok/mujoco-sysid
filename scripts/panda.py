@@ -41,7 +41,7 @@ with (
     mujoco.viewer.launch_passive(model, data) as viewer,
     SimLogger(model, data, output_filepath="data/panda_data.json") as logger,
 ):
-    while viewer.is_running() and data.time < num_of_phases*phase_time:
+    while viewer.is_running() and data.time < num_of_phases * phase_time:
         step_start = time.time()
 
         if data.time > phase_time * phases:
