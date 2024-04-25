@@ -1,29 +1,13 @@
-# MuJoCo SysId example
+# MuJoCo SysId examples
 
-## Installation
+This repository contains examples of system identification using MuJoCo.
 
-1. Create virtual environment
+## Cart pole [example](cart_pole.ipynb)
 
-```bash
-python3 -m venv venv
-```
+## Panda external load [example](panda.ipynb)
 
-2. Activate virtual environment
+## Skydio X2 [example](skydio.ipynb)
 
-```bash
-source venv/bin/activate
-```
+## Acknowledgements
 
-3. Install requirements
-
-```bash
-pip install -r requirements.txt
-```
-
-## Gather the data
-
-1. For the Panda robot, run the following command
-
-```bash
-python3 scripts/panda.py
-```
+## References
