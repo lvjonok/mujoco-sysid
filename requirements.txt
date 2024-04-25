@@ -1,5 +1,0 @@
-mujoco==3.1.4
-mujoco-logger
-robot-descriptions
-ipykernel
-# darli==0.3.2
