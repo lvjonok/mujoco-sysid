@@ -43,5 +43,27 @@ def mj_bodyRegressor(mj_model, mj_data, body_id):
     if mj_model.nq != mj_model.nv:
         dv -= _cross
 
-    Y = Y_body(v, w, dv, dw)
-    return Y
+    return Y_body(v, w, dv, dw)
+
+
+def mj_jointRegressor(mj_model, mj_data, body_offset=0):
+    njoints = mj_model.njnt
+    body_regressors = np.zeros((6 * njoints, njoints * 10))
+    col_jac = np.zeros((6 * njoints, mj_model.nv))
+    jac_lin = np.zeros((3, mj_model.nv))
+    jac_rot = np.zeros((3, mj_model.nv))
+
+    for i in range(njoints):
+        # calculate cody regressors
+        body_regressors[6 * i : 6 * (i + 1), 10 * i : 10 * (i + 1)] = mj_bodyRegressor(
+            mj_model, mj_data, i + body_offset
+        )
+
+        mujoco.mj_jacBody(mj_model, mj_data, jac_lin, jac_rot, i + body_offset)
+
+        # Calculate jacobians
+        rotation = mj_data.xmat[i + body_offset].reshape(3, 3).copy()
+        col_jac[6 * i : 6 * i + 3, :] = rotation.T @ jac_lin.copy()
+        col_jac[6 * i + 3 : 6 * i + 6, :] = rotation.T @ jac_rot.copy()
+
+    return col_jac.T @ body_regressors
