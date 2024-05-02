@@ -1,6 +1,6 @@
 # MuJoCo SysId
 
-<a href="https://colab.research.google.com/drive/1WXzbk1fTAikywImj6VpcZ9BMdPC7Fn4n#scrollTo=g-cUBZu4hnyE"><img src="https://colab.research.google.com/assets/colab-badge.svg" width="120" align="center"/></a>
+<a href="https://colab.research.google.com/github/lvjonok/mujoco-sysid/blob/master/examples/mujoco_sysid_demo.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" width="120" align="center"/></a>
 
 # <h1><center>System Identification in Robotic Systems<br></center></h1>
 
@@ -10,11 +10,11 @@ Our primary focus is on mechanical systems where **the model structure is known*
 
 ### Contents
 
-This repository includes the following examples:
+This repository includes the following [examples](examples/mujoco_sysid_demo.ipynb):
 
-- [Estimation of cart-pole inertial parameters through random forcing and LQR stabilization of the identified system](examples/cart_pole.ipynb)
-- [Identification of end-effector load for the Franka Emika Panda and compensation using inverse dynamics](examples/panda.ipynb)
-- [Determination of mass, center of mass, and spatial inertia for a Skydio X2 Quadrotor following LTV LQR tracking attempts.](examples/skydio.ipynb)
+- Estimation of cart-pole inertial parameters through random forcing and LQR stabilization of the identified system
+- Identification of end-effector load for the Franka Emika Panda and compensation using inverse dynamics
+- Determination of mass, center of mass, and spatial inertia for a Skydio X2 Quadrotor following LTV LQR tracking attempts.
 
 Additionally, we provide some theoretical background and introduce two utility functions that may enhance system identification and adaptive control in robotic systems: `mj_bodyRegressor` and `mj_jointRegressor`.
 
