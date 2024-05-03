@@ -1,4 +1,22 @@
-"""This module contains functions with easier access to dynamics quantities"""
+"""This module contains functions of the regressor representation of inverse dynamics for single rigid body:
+    M_b * a_g + v x M_b * v = Y_b(v, a_g)*theta = f
+
+and multiple bodies in generilized coordinates:
+    M(q) * ddq + h(q, dq) = Y(q, dq, ddq)*theta = tau
+
+with vector of inertial parameters (stacked for multiple bodies):
+    theta = [m, h_x, h_y, h_z, I_xx, I_xy, I_yy, I_xz, I_yz, I_zz]
+
+A linear parametrization of inverse dynamics is pivotal in SysID for robotic systems. 
+To the best of our knowledge, dedicated functions for this representation are not available in MuJoCo, 
+prompting us to develop this prototype.
+
+References:
+- Traversaro, Silvio, et al. "Identification of fully physical consistent inertial parameters using optimization on manifolds." 
+    2016 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS). IEEE, 2016.
+- Garofalo G, Ott C, Albu-Schäffer A. On the closed form computation of the dynamic matrices and their differentiations. 
+    In2013 IEEE/RSJ International Conference on Intelligent Robots and Systems 2013 Nov 3 (pp. 2364-2359). IEEE.
+"""
 
 import mujoco
 import numpy as np
@@ -112,7 +130,8 @@ def mj_jointRegressor(mj_model, mj_data, body_offset=0) -> npt.ArrayLike:
         Y * theta = tau
 
     where:
-        theta is the vector of inertial parameters of the bodies (10 parameters per body)
+        theta is the vector of inertial parameters of the bodies (10 parameters per body):
+            theta = [m, h_x, h_y, h_z, I_xx, I_xy, I_yy, I_xz, I_yz, I_zz]
 
 
     Args:
