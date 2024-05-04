@@ -102,38 +102,51 @@ def logchol2theta(log_cholesky: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: Vector of parameters [m, h_x, h_y, h_z, I_xx, I_xy, I_yy, I_xz, I_yz, I_zz].
     """
-    alpha, d1, d2, d3, s12, s23, s34 = log_cholesky
-    exp_diag = np.exp(np.array([d1, d2, d3]))
-    m = exp_diag[2] ** 2
-    h = np.array([alpha * exp_diag[0], s12 * exp_diag[1], s23 * exp_diag[2]])
+    alpha, d1, d2, d3, s12, s23, s13, t1, t2, t3 = log_cholesky
+    scale = np.exp(2 * alpha)
+    e_d1 = np.exp(d1)
+    e_d2 = np.exp(d2)
+    e_d3 = np.exp(d3)
+    theta_scaled = np.zeros(10)
+    theta_scaled[0] = t1**2 + t2**2 + t3**2 + 1
+    theta_scaled[1] = t1 * e_d1
+    theta_scaled[2] = t1 * s12 + t2 * e_d2
+    theta_scaled[3] = t1 * s13 + t2 * s23 + t3 * e_d3
+    theta_scaled[4] = s12**2 + s13**2 + s23**2 + e_d2**2 + e_d3**2
+    theta_scaled[5] = -s12 * e_d1
+    theta_scaled[6] = s13**2 + s23**2 + e_d1**2 + e_d3**2
+    theta_scaled[7] = -s13 * e_d1
+    theta_scaled[8] = -s12 * s13 - s23 * e_d2
+    theta_scaled[9] = s12**2 + e_d1**2 + e_d2**2
+    return theta_scaled * scale
 
-    I_xx = exp_diag[0] ** 2
-    I_xy = s12 * exp_diag[0] * exp_diag[1]
-    I_yy = exp_diag[1] ** 2
-    I_xz = s34 * exp_diag[0] * exp_diag[2]
-    I_yz = s23 * exp_diag[1] * exp_diag[2]
-    I_zz = exp_diag[2] ** 2
 
-    theta = np.array([m, h[0], h[1], h[2], I_xx, I_xy, I_yy, I_xz, I_yz, I_zz])
-    return theta
-
-
-def chol2logchol(cholesky: np.ndarray) -> np.ndarray:
+def chol2logchol(U: np.ndarray) -> np.ndarray:
     """
     Converts Cholesky decomposition to logarithmic Cholesky parameters.
 
     Args:
-        cholesky (np.ndarray): Cholesky decomposition of a matrix.
+        U (np.ndarray): Upper triangular matrix from Cholesky decomposition.
 
     Returns:
         np.ndarray: Logarithmic Cholesky parameters.
     """
-    d1, d2, d3 = np.diag(cholesky)
-    s12 = cholesky[0, 1] / d1
-    s23 = cholesky[1, 2] / d2
-    s34 = cholesky[0, 2] / d3
-    log_cholesky = np.array([np.log(d1), np.log(d2), np.log(d3), s12, s23, s34])
-    return log_cholesky
+    U = cholesky
+    d1 = np.log(U[0, 0] / U[3, 3])
+    d2 = np.log(U[1, 1] / U[3, 3])
+    d3 = np.log(U[2, 2] / U[3, 3])
+
+    alpha = np.log(U[3, 3])
+    d1 = np.log(U[0, 0] / U[3, 3])
+    d2 = np.log(U[1, 1] / U[3, 3])
+    d3 = np.log(U[2, 2] / U[3, 3])
+    s12 = U[0, 1] / U[3, 3]
+    s23 = U[1, 2] / U[3, 3]
+    s13 = U[0, 2] / U[3, 3]
+    t1 = U[0, 3] / U[3, 3]
+    t2 = U[1, 3] / U[3, 3]
+    t3 = U[2, 3] / U[3, 3]
+    return np.array([alpha, d1, d2, d3, s12, s23, s13, t1, t2, t3])
 
 
 def pseudo2logchol(pseudo_inertia: np.ndarray) -> np.ndarray:

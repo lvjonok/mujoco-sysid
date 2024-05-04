@@ -23,7 +23,9 @@ import numpy as np
 from numpy import typing as npt
 
 
-def Y_body(v_lin: npt.ArrayLike, v_ang: npt.ArrayLike, a_lin: npt.ArrayLike, a_ang: npt.ArrayLike) -> npt.ArrayLike:
+def body_dynamicsRegressor(
+    v_lin: npt.ArrayLike, v_ang: npt.ArrayLike, a_lin: npt.ArrayLike, a_ang: npt.ArrayLike
+) -> npt.ArrayLike:
     """Y_body returns a regressor for a single rigid body
 
     Newton-Euler equations for a rigid body are given by:
@@ -104,7 +106,7 @@ def mj_bodyRegressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
     if mj_model.nq != mj_model.nv:
         dv -= _cross
 
-    return Y_body(v, w, dv, dw)
+    return body_dynamicsRegressor(v, w, dv, dw)
 
 
 def mj_jointRegressor(mj_model, mj_data, body_offset=0) -> npt.ArrayLike:
@@ -164,3 +166,110 @@ def mj_jointRegressor(mj_model, mj_data, body_offset=0) -> npt.ArrayLike:
         col_jac[6 * i + 3 : 6 * i + 6, :] = rotation.T @ jac_rot.copy()
 
     return col_jac.T @ body_regressors
+
+
+def body_energyRegressor(
+    v: npt.ArrayLike,
+    w: npt.ArrayLike,
+    r: npt.ArrayLike,
+    R: npt.ArrayLike,
+    gravity: npt.ArrayLike = np.array([0, 0, 9.81]),
+) -> tuple[npt.ArrayLike, npt.ArrayLike]:
+    """
+    Computes the kinetic and potential energy regressors for a single body.
+
+    This function calculates the energy regressors for the whole model in the MuJoCo model.
+
+    The energy regressors are computed to represent the kinetic and potential energy of the system
+    as a linear combination of the inertial parameters of the bodies.
+
+    The kinetic energy of a rigid body is given by:
+        K = 0.5 * v^T * M * v
+
+    The potential energy of a rigid body in a uniform gravitational field is given by:
+        U = m * g^T * r
+
+    where:
+        v is the spatial velocity of the body
+        M is the spatial inertia matrix of the body
+        m is the mass of the body
+        g is the gravitational acceleration vector
+        r is the position of the body's center of mass
+
+    The energy regressors Y_k and Y_u are matrices such that:
+        K = Y_k * theta
+        U = Y_u * theta
+
+    Args:
+        v (npt.ArrayLike): Linear velocity of the body.
+        w (npt.ArrayLike): Angular velocity of the body.
+        r (npt.ArrayLike): Position of the body.
+        R (npt.ArrayLike): Rotation matrix of the body.
+        gravity (npt.ArrayLike, optional): Gravity vector. Defaults to np.array([0, 0, 9.81]).
+
+    Returns:
+        tuple[npt.ArrayLike, npt.ArrayLike]: Kinetic and potential energy regressors.
+    """
+
+    kinetic = np.array(
+        [
+            0.5 * (v[0] ** 2 + v[1] ** 2 + v[2] ** 2),
+            -w[1] * v[2] + w[2] * v[1],
+            w[0] * v[2] - w[2] * v[0],
+            -w[0] * v[1] + w[1] * v[0],
+            0.5 * w[0] ** 2,
+            w[0] * w[1],
+            0.5 * w[1] ** 2,
+            w[0] * w[2],
+            w[1] * w[2],
+            0.5 * w[2] ** 2,
+        ]
+    )
+
+    potential = np.array([*(gravity.T @ r).flatten(), *(gravity.T @ R).flatten(), 0, 0, 0, 0, 0, 0])
+
+    return kinetic, potential
+
+
+def mj_energyRegressor(mj_model, mj_data, body_offset: int = 0) -> tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]:
+    """
+    mj_energyRegressor returns kinetic, potential, and total energy regressors for the whole model.
+
+    The energy regressors Y_k and Y_u are matrices such that:
+        K = Y_k * theta
+        U = Y_u * theta
+
+    where:
+        theta is the vector of inertial parameters of the bodies (10 parameters per body):
+            theta = [m, h_x, h_y, h_z, I_xx, I_xy, I_yy, I_xz, I_yz, I_zz]
+
+    The total energy regressor Y_e is simply the sum of Y_k and Y_u:
+        E = K + U = Y_e * theta
+
+    Args:
+        mj_model: MuJoCo model
+        mj_data: MuJoCo data
+        body_offset (int, optional): Starting index of the body, useful when some dummy bodies are introduced. Defaults to 0.
+
+    Returns:
+        tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]: kinetic, potential, and total energy regressors for the whole model
+    """
+
+    njoints = mj_model.njnt
+    energy_regressor = np.zeros(njoints * 10)
+    kinetic_regressor = np.zeros(njoints * 10)
+    potential_regressor = np.zeros(njoints * 10)
+    velocity = np.zeros(6)
+
+    for i in range(njoints):
+        mujoco.mj_objectVelocity(mj_model, mj_data, 2, i + body_offset, velocity, 1)
+        rotation = mj_data.xmat[i + body_offset].reshape(3, 3).copy()
+        position = mj_data.xpos[i + body_offset]
+
+        v, w = velocity[3:], velocity[:3]
+        kinetic, potential = body_energyRegressor(v, w, position, rotation)
+        kinetic_regressor[10 * i : 10 * (i + 1)] = kinetic
+        potential_regressor[10 * i : 10 * (i + 1)] = potential
+        energy_regressor[10 * i : 10 * (i + 1)] = kinetic + potential
+
+    return kinetic_regressor, potential_regressor, energy_regressor
