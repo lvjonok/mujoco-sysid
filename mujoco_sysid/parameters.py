@@ -38,9 +38,7 @@ def theta2pseudo(theta: np.ndarray) -> np.ndarray:
     h = theta[1:4]
     I_xx, I_xy, I_yy, I_xz, I_yz, I_zz = theta[4:]
 
-    I_bar = np.array([[I_xx, I_xy, I_xz],
-                      [I_xy, I_yy, I_yz],
-                      [I_xz, I_yz, I_zz]])
+    I_bar = np.array([[I_xx, I_xy, I_xz], [I_xy, I_yy, I_yz], [I_xz, I_yz, I_zz]])
 
     Sigma = 0.5 * np.trace(I_bar) * np.eye(3) - I_bar
 
@@ -106,15 +104,15 @@ def logchol2theta(log_cholesky: np.ndarray) -> np.ndarray:
     """
     alpha, d1, d2, d3, s12, s23, s34 = log_cholesky
     exp_diag = np.exp(np.array([d1, d2, d3]))
-    m = exp_diag[2]**2
+    m = exp_diag[2] ** 2
     h = np.array([alpha * exp_diag[0], s12 * exp_diag[1], s23 * exp_diag[2]])
 
-    I_xx = exp_diag[0]**2
+    I_xx = exp_diag[0] ** 2
     I_xy = s12 * exp_diag[0] * exp_diag[1]
-    I_yy = exp_diag[1]**2
+    I_yy = exp_diag[1] ** 2
     I_xz = s34 * exp_diag[0] * exp_diag[2]
     I_yz = s23 * exp_diag[1] * exp_diag[2]
-    I_zz = exp_diag[2]**2
+    I_zz = exp_diag[2] ** 2
 
     theta = np.array([m, h[0], h[1], h[2], I_xx, I_xy, I_yy, I_xz, I_yz, I_zz])
     return theta
@@ -134,8 +132,7 @@ def chol2logchol(cholesky: np.ndarray) -> np.ndarray:
     s12 = cholesky[0, 1] / d1
     s23 = cholesky[1, 2] / d2
     s34 = cholesky[0, 2] / d3
-    log_cholesky = np.array(
-        [np.log(d1), np.log(d2), np.log(d3), s12, s23, s34])
+    log_cholesky = np.array([np.log(d1), np.log(d2), np.log(d3), s12, s23, s34])
     return log_cholesky
 
 

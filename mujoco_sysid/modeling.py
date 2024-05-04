@@ -96,7 +96,8 @@ def mj_bodyRegressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
     mujoco.mj_objectAcceleration(mj_model, mj_data, 2, body_id, accel, 1)
 
     v, w = velocity[3:], velocity[:3]
-    dv, dw = accel[3:], accel[:3]  # dv - classical acceleration, already contains g
+    # dv - classical acceleration, already contains g
+    dv, dw = accel[3:], accel[:3]
     mujoco.mju_cross(_cross, w, v)
 
     # if floating, should be cancelled
