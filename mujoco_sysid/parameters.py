@@ -1,8 +1,8 @@
 """
-This module provides a suite of functions designed to work with pseudo inertia matrices and their various transformations. 
-It supports converting inertial parameters, denoted as `theta = [m, h_x, h_y, h_z, I_xx, I_xy, I_yy, I_xz, I_yz, I_zz]`, 
-into pseudo inertia matrices and back, as well as conversions involving log Cholesky parameterizations. 
-These functions facilitate system identification by accounting for the manifold of PD (Positive Definite) 
+This module provides a suite of functions designed to work with pseudo inertia matrices and their various transformations.
+It supports converting inertial parameters, denoted as `theta = [m, h_x, h_y, h_z, I_xx, I_xy, I_yy, I_xz, I_yz, I_zz]`,
+into pseudo inertia matrices and back, as well as conversions involving log Cholesky parameterizations.
+These functions facilitate system identification by accounting for the manifold of PD (Positive Definite)
 pseudo inertia and can be used alongside the nonlinear optimization tools provided by the Mujoco minimizer.
 
 ### Functions:
@@ -16,9 +16,9 @@ pseudo inertia and can be used alongside the nonlinear optimization tools provid
 
 For more information, please consider reviewing the following references:
 - Rucker C, Wensing PM. Smooth parameterization of rigid-body inertia. IEEE Robotics and Automation Letters. 2022 Jan 21;7(2):2771-8.
-- Wensing PM, Kim S, Slotine JJ. Linear matrix inequalities for physically consistent inertial parameter identification: 
+- Wensing PM, Kim S, Slotine JJ. Linear matrix inequalities for physically consistent inertial parameter identification:
         A statistical perspective on the mass distribution. IEEE Robotics and Automation Letters. 2017 Jul 20;3(1):60-7.
-"""
+"""  # noqa: E501
 
 import numpy as np
 from scipy.linalg import cholesky
