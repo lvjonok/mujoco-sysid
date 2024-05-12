@@ -1,38 +1,68 @@
 """
-This module provides a suite of functions designed to work with pseudo inertia matrices and their various transformations. 
-It supports converting inertial parameters, denoted as `theta = [m, h_x, h_y, h_z, I_xx, I_xy, I_yy, I_xz, I_yz, I_zz]`, 
-into pseudo inertia matrices and back, as well as conversions involving log Cholesky parameterizations. 
-These functions facilitate system identification by accounting for the manifold of PD (Positive Definite) 
-pseudo inertia and can be used alongside the nonlinear optimization tools provided by the Mujoco minimizer.
+This module provides functions for converting between different representations of pseudo inertia matrices,
+including theta parameters, logarithmic Cholesky parameters, and Cholesky decomposition.
 
-### Functions:
-- `theta2pseudo`: Converts theta parameters into pseudo inertia matrices.
-- `pseudo2theta`: Converts pseudo inertia matrices back into theta parameters.
-- `pseudo2cholesky`: Computes the Cholesky decomposition of a pseudo inertia matrix.
-- `logchol2theta`: Converts log Cholesky parameters back into theta parameters.
-- `chol2logchol`: Converts a Cholesky decomposition into log Cholesky parameters.
-- `pseudo2logchol`: Converts a pseudo inertia matrix into log Cholesky parameters.
-- `theta2logchol`: Converts theta parameters directly into log Cholesky parameters.
+The main representations used are:
+- Theta parameters: A 10-dimensional vector containing mass, first moments, and inertia tensor components.
+    theta = [m, h_x, h_y, h_z, I_xx, I_xy, I_yy, I_xz, I_yz, I_zz]
 
-For more information, please consider reviewing the following references:
+- Pseudo inertia matrix: A 4x4 symmetric matrix representing the pseudo inertia of a rigid body.
+    pseudo = [[-0.5*I_xx + 0.5*I_yy + 0.5*I_zz, -I_xy, -I_xz, mr_x],
+              [-I_xy, 0.5*I_xx - 0.5*I_yy + 0.5*I_zz, -I_yz, mr_y],
+              [-I_xz, -I_yz, 0.5*I_xx + 0.5*I_yy - 0.5*I_zz, mr_z],
+              [mr_x, mr_y, mr_z, m]]
+
+- Cholesky decomposition: An upper triangular matrix U such that the pseudo inertia matrix J = U * U^T.
+    U = [[exp(alpha)*exp(d_1), s_12*exp(alpha), s_13*exp(alpha), t_1*exp(alpha)],
+         [0, exp(alpha)*exp(d_2), s_23*exp(alpha), t_2*exp(alpha)],
+         [0, 0, exp(alpha)*exp(d_3), t_3*exp(alpha)],
+         [0, 0, 0, exp(alpha)]]
+
+- Logarithmic Cholesky parameters: A 10-dimensional vector containing logarithmic parameters derived from the Cholesky decomposition.
+    logchol = [alpha, d_1, d_2, d_3, s_12, s_23, s_13, t_1, t_2, t_3]
+
+Functions:
+- `theta2pseudo(theta: np.ndarray) -> np.ndarray`
+    Converts theta parameters to a pseudo inertia matrix.
+- `pseudo2theta(pseudo_inertia: np.ndarray) -> np.ndarray`
+    Converts a pseudo inertia matrix to theta parameters.
+- `logchol2chol(log_cholesky: np.ndarray) -> np.ndarray`
+    Converts logarithmic Cholesky parameters to the Cholesky matrix, factoring out exp(alpha).
+- `chol2logchol(U: np.ndarray) -> np.ndarray`
+    Converts the upper triangular matrix U to logarithmic Cholesky parameters.
+- `pseudo2cholesky(pseudo_inertia: np.ndarray) -> np.ndarray`
+    Computes the Cholesky decomposition of a pseudo inertia matrix.
+- `cholesky2pseudo(U: np.ndarray) -> np.ndarray`
+    Converts the upper triangular Cholesky matrix U back into a pseudo inertia matrix.
+- `pseudo2logchol(pseudo_inertia: np.ndarray) -> np.ndarray`
+    Converts a pseudo inertia matrix to logarithmic Cholesky parameters.
+- `theta2logchol(theta: np.ndarray) -> np.ndarray`
+    Converts theta parameters directly to logarithmic Cholesky parameters.
+
+For more information and derivations, please consider reviewing the following references:
 - Rucker C, Wensing PM. Smooth parameterization of rigid-body inertia. IEEE Robotics and Automation Letters. 2022 Jan 21;7(2):2771-8.
 - Wensing PM, Kim S, Slotine JJ. Linear matrix inequalities for physically consistent inertial parameter identification: 
         A statistical perspective on the mass distribution. IEEE Robotics and Automation Letters. 2017 Jul 20;3(1):60-7.
+
+Additional discussions and derivations are available at:
+https://colab.research.google.com/drive/1xFte2FT0nQ0ePs02BoOx4CmLLw5U-OUZ#scrollTo=Xt86l6AtZBhI
 """
 
 import numpy as np
-from scipy.linalg import cholesky
 
 
 def theta2pseudo(theta: np.ndarray) -> np.ndarray:
     """
-    Converts theta parameters into the pseudo inertia matrix.
+    Converts theta parameters to a pseudo inertia matrix.
 
     Args:
-        theta (np.ndarray): Contains mass, first moments, and inertia tensor components:
-            [m, h_x, h_y, h_z, I_xx, I_xy, I_yy, I_xz, I_yz, I_zz]
+        theta (np.ndarray): A 10-dimensional vector containing mass, first moments, and inertia tensor components.
+            - theta[0]: Mass (m)
+            - theta[1:4]: First moments (mc_x, mc_y, mc_z)
+            - theta[4:10]: Inertia tensor components (I_xx, I_yy, I_zz, I_xy, I_xz, I_yz)
+
     Returns:
-        np.ndarray: Pseudo inertia matrix.
+        np.ndarray: A 4x4 pseudo inertia matrix.
     """
     m = theta[0]
     h = theta[1:4]
@@ -53,13 +83,16 @@ def theta2pseudo(theta: np.ndarray) -> np.ndarray:
 
 def pseudo2theta(pseudo_inertia: np.ndarray) -> np.ndarray:
     """
-    Converts a pseudo inertia matrix back to theta parameters.
+    Converts a pseudo inertia matrix to theta parameters.
 
     Args:
-        pseudo_inertia (np.ndarray): Pseudo inertia matrix.
+        pseudo_inertia (np.ndarray): A 4x4 symmetric matrix representing the pseudo inertia of a rigid body.
 
     Returns:
-        np.ndarray: Vector of parameters [m, h_x, h_y, h_z, I_xx, I_xy, I_yy, I_xz, I_yz, I_zz].
+        np.ndarray: A 10-dimensional vector containing mass, first moments, and inertia tensor components.
+            - theta[0]: Mass (m)
+            - theta[1:4]: First moments (mc_x, mc_y, mc_z)
+            - theta[4:10]: Inertia tensor components (I_xx, I_yy, I_zz, I_xy, I_xz, I_yz)
     """
     m = pseudo_inertia[3, 3]
     h = pseudo_inertia[:3, 3]
@@ -79,62 +112,61 @@ def pseudo2theta(pseudo_inertia: np.ndarray) -> np.ndarray:
     return theta
 
 
-def pseudo2cholesky(pseudo_inertia: np.ndarray) -> np.ndarray:
+def logchol2chol(log_cholesky):
     """
-    Computes the Cholesky decomposition of a pseudo inertia matrix.
+    Converts logarithmic Cholesky parameters to the Cholesky matrix, factoring out exp(alpha).
 
     Args:
-        pseudo_inertia (np.ndarray): Pseudo inertia matrix.
+        log_cholesky (np.ndarray): A 10-dimensional vector containing logarithmic Cholesky parameters.
+            - log_cholesky[0]: alpha
+            - log_cholesky[1:4]: (d1, d2, d3)
+            - log_cholesky[4:7]: (s12, s23, s13)
+            - log_cholesky[7:10]: (t1, t2, t3)
 
     Returns:
-        np.ndarray: Cholesky decomposition of the matrix.
-    """
-    return cholesky(pseudo_inertia)
-
-
-def logchol2theta(log_cholesky: np.ndarray) -> np.ndarray:
-    """
-    Converts logarithmic Cholesky parameters to theta parameters.
-
-    Args:
-        log_cholesky (np.ndarray): Logarithmic Cholesky parameters.
-
-    Returns:
-        np.ndarray: Vector of parameters [m, h_x, h_y, h_z, I_xx, I_xy, I_yy, I_xz, I_yz, I_zz].
+        np.ndarray: A 4x4 upper triangular Cholesky matrix U.
     """
     alpha, d1, d2, d3, s12, s23, s13, t1, t2, t3 = log_cholesky
-    scale = np.exp(2 * alpha)
-    e_d1 = np.exp(d1)
-    e_d2 = np.exp(d2)
-    e_d3 = np.exp(d3)
-    theta_scaled = np.zeros(10)
-    theta_scaled[0] = t1**2 + t2**2 + t3**2 + 1
-    theta_scaled[1] = t1 * e_d1
-    theta_scaled[2] = t1 * s12 + t2 * e_d2
-    theta_scaled[3] = t1 * s13 + t2 * s23 + t3 * e_d3
-    theta_scaled[4] = s12**2 + s13**2 + s23**2 + e_d2**2 + e_d3**2
-    theta_scaled[5] = -s12 * e_d1
-    theta_scaled[6] = s13**2 + s23**2 + e_d1**2 + e_d3**2
-    theta_scaled[7] = -s13 * e_d1
-    theta_scaled[8] = -s12 * s13 - s23 * e_d2
-    theta_scaled[9] = s12**2 + e_d1**2 + e_d2**2
-    return theta_scaled * scale
+
+    # Compute the exponential terms
+    exp_alpha = np.exp(alpha)
+    exp_d1 = np.exp(d1)
+    exp_d2 = np.exp(d2)
+    exp_d3 = np.exp(d3)
+
+    # Construct the scaled Cholesky matrix U without exp_alpha
+    U = np.zeros((4, 4))
+    U[0, 0] = exp_d1
+    U[0, 1] = s12
+    U[0, 2] = s13
+    U[0, 3] = t1
+    U[1, 1] = exp_d2
+    U[1, 2] = s23
+    U[1, 3] = t2
+    U[2, 2] = exp_d3
+    U[2, 3] = t3
+    U[3, 3] = 1
+
+    # Multiply the entire matrix by exp_alpha
+    U *= exp_alpha
+
+    return U
 
 
 def chol2logchol(U: np.ndarray) -> np.ndarray:
     """
-    Converts Cholesky decomposition to logarithmic Cholesky parameters.
+    Converts the upper triangular matrix U to logarithmic Cholesky parameters.
 
     Args:
-        U (np.ndarray): Upper triangular matrix from Cholesky decomposition.
+        U (np.ndarray): A 4x4 upper triangular matrix decomposition of the pseudo inertia matrix.
 
     Returns:
-        np.ndarray: Logarithmic Cholesky parameters.
+        np.ndarray: A 10-dimensional vector containing logarithmic Cholesky parameters.
+            - log_cholesky[0]: alpha
+            - log_cholesky[1:4]: (d_1, d_2, d_3)
+            - log_cholesky[4:7]: (s12, s23, s13)
+            - log_cholesky[7:10]: (t_1, t_2, t_3)
     """
-    U = cholesky
-    d1 = np.log(U[0, 0] / U[3, 3])
-    d2 = np.log(U[1, 1] / U[3, 3])
-    d3 = np.log(U[2, 2] / U[3, 3])
 
     alpha = np.log(U[3, 3])
     d1 = np.log(U[0, 0] / U[3, 3])
@@ -149,18 +181,111 @@ def chol2logchol(U: np.ndarray) -> np.ndarray:
     return np.array([alpha, d1, d2, d3, s12, s23, s13, t1, t2, t3])
 
 
+def logchol2theta(log_cholesky: np.ndarray) -> np.ndarray:
+    """
+    Converts logarithmic Cholesky parameters directly to theta parameters.
+
+    Args:
+        log_cholesky (np.ndarray): A 10-dimensional vector containing logarithmic Cholesky parameters.
+            - log_cholesky[0]: alpha
+            - log_cholesky[1:4]: (d_1, d_2, d_3)
+            - log_cholesky[4:7]: (s12, s23, s13)
+            - log_cholesky[7:10]: (t_1, t_2, t_3)
+
+    Returns:
+        np.ndarray: A 10-dimensional vector containing mass, first moments, and inertia tensor components.
+            - theta[0]: Mass (m)
+            - theta[1:4]: First moments (mc_x, mc_y, mc_z)
+            - theta[4:10]: Inertia tensor components (I_xx, I_yy, I_zz, I_xy, I_xz, I_yz)
+    """
+    alpha, d1, d2, d3, s12, s23, s13, t1, t2, t3 = log_cholesky
+
+    # Calculate exponential terms without applying exp_2_alpha
+    exp_d1 = np.exp(d1)
+    exp_d2 = np.exp(d2)
+    exp_d3 = np.exp(d3)
+
+    # Compute the elements of the output vector without exp_2_alpha
+    theta = np.zeros(10)
+    theta[0] = 1
+    theta[1] = t1
+    theta[2] = t2
+    theta[3] = t3
+    theta[4] = s23**2 + t2**2 + t3**2 + exp_d2**2 + exp_d3**2
+    theta[5] = -s12 * exp_d2 - s13 * s23 - t1 * t2
+    theta[6] = s12**2 + s13**2 + t1**2 + t3**2 + exp_d1**2 + exp_d3**2
+    theta[7] = -s13 * exp_d3 - t1 * t3
+    theta[8] = -s23 * exp_d3 - t2 * t3
+    theta[9] = s12**2 + s13**2 + s23**2 + t1**2 + t2**2 + exp_d1**2 + exp_d2**2
+
+    # Calculate exp_2_alpha and scale the theta vector
+    exp_2_alpha = np.exp(2 * alpha)
+    theta *= exp_2_alpha
+
+    return theta
+
+
+def pseudo2cholesky(pseudo_inertia: np.ndarray) -> np.ndarray:
+    """
+    Computes the Cholesky decomposition of a pseudo inertia matrix.
+    Note that this is UPPER triangular decomposition in form J = U*U^T, which is not the usual way to calculate the Cholesky decomposition.
+    However, in this form, the associated logarithmic Cholesky parameters have a geometrical meaning.
+
+    Args:
+        pseudo_inertia (np.ndarray): A 4x4 symmetric matrix representing the pseudo inertia of a rigid body.
+
+    Returns:
+        np.ndarray: A 4x4 upper triangular Cholesky matrix U.
+    """
+
+    n = pseudo_inertia.shape[0]
+    indices = np.arange(n - 1, -1, -1)  # Indices to reverse the order
+
+    # Apply the inversion using indices for rows and columns
+    reversed_inertia = pseudo_inertia[indices][:, indices]
+
+    # Perform Cholesky decomposition on the permuted matrix A'
+    L_prime = np.linalg.cholesky(reversed_inertia)
+
+    # Apply the reverse permutation to L_prime and transpose it to form U
+    U = L_prime[indices][:, indices]
+
+    return U
+
+
+def cholesky2pseudo(U: np.ndarray) -> np.ndarray:
+    """
+    Converts the upper triangular Cholesky matrix U back into a pseudo inertia matrix.
+
+    Args:
+        U (np.ndarray): A 4x4 upper triangular Cholesky matrix.
+
+    Returns:
+        np.ndarray: A 4x4 pseudo inertia matrix.
+    """
+    return U @ U.T
+
+
 def pseudo2logchol(pseudo_inertia: np.ndarray) -> np.ndarray:
     """
     Converts a pseudo inertia matrix to logarithmic Cholesky parameters.
 
     Args:
-        pseudo_inertia (np.ndarray): Pseudo inertia matrix.
+        pseudo_inertia (np.ndarray): A 4x4 symmetric matrix representing the pseudo inertia of a rigid body.
 
     Returns:
-        np.ndarray: Logarithmic Cholesky parameters.
+        np.ndarray: A 10-dimensional vector containing logarithmic Cholesky parameters.
+            - log_cholesky[0]: alpha
+            - log_cholesky[1:4]: (d_1, d_2, d_3)
+            - log_cholesky[4:7]: (s_12, s_23, s_13)
+            - log_cholesky[7:10]: (t_1, t_2, t_3)
     """
-    cholesky_decomp = cholesky(pseudo_inertia)
-    return chol2logchol(cholesky_decomp)
+    # theta = pseudo2theta(pseudo_inertia)
+    U = pseudo2cholesky(pseudo_inertia)
+
+    logchol = chol2logchol(U)
+
+    return logchol
 
 
 def theta2logchol(theta: np.ndarray) -> np.ndarray:
@@ -168,10 +293,17 @@ def theta2logchol(theta: np.ndarray) -> np.ndarray:
     Converts theta parameters directly to logarithmic Cholesky parameters.
 
     Args:
-        theta (np.ndarray): Contains mass, first moments, and inertia tensor components.
+        theta (np.ndarray): A 10-dimensional vector containing mass, first moments, and inertia tensor components.
+            - theta[0]: Mass (m)
+            - theta[1:4]: First moments (mc_x, mc_y, mc_z)
+            - theta[4:10]: Inertia tensor components (I_xx, I_yy, I_zz, I_xy, I_xz, I_yz)
 
     Returns:
-        np.ndarray: Logarithmic Cholesky parameters.
+        np.ndarray: A 10-dimensional vector containing logarithmic Cholesky parameters.
+            - log_cholesky[0]: alpha
+            - log_cholesky[1:4]: (d_1, d_2, d_3)
+            - log_cholesky[4:7]: (s_12, s_23, s_13)
+            - log_cholesky[7:10]: (t_1, t_2, t_3)
     """
     pseudo_inertia = theta2pseudo(theta)
     return pseudo2logchol(pseudo_inertia)
