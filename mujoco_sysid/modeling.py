@@ -7,16 +7,16 @@ and multiple bodies in generilized coordinates:
 with vector of inertial parameters (stacked for multiple bodies):
     theta = [m, h_x, h_y, h_z, I_xx, I_xy, I_yy, I_xz, I_yz, I_zz]
 
-A linear parametrization of inverse dynamics is pivotal in SysID for robotic systems. 
-To the best of our knowledge, dedicated functions for this representation are not available in MuJoCo, 
+A linear parametrization of inverse dynamics is pivotal in SysID for robotic systems.
+To the best of our knowledge, dedicated functions for this representation are not available in MuJoCo,
 prompting us to develop this prototype.
 
 References:
-- Traversaro, Silvio, et al. "Identification of fully physical consistent inertial parameters using optimization on manifolds." 
+- Traversaro, Silvio, et al. "Identification of fully physical consistent inertial parameters using optimization on manifolds."
     2016 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS). IEEE, 2016.
-- Garofalo G, Ott C, Albu-Schäffer A. On the closed form computation of the dynamic matrices and their differentiations. 
+- Garofalo G, Ott C, Albu-Schäffer A. On the closed form computation of the dynamic matrices and their differentiations.
     In2013 IEEE/RSJ International Conference on Intelligent Robots and Systems 2013 Nov 3 (pp. 2364-2359). IEEE.
-"""
+"""  # noqa
 
 import mujoco
 import numpy as np
@@ -173,7 +173,7 @@ def body_energyRegressor(
     w: npt.ArrayLike,
     r: npt.ArrayLike,
     R: npt.ArrayLike,
-    gravity: npt.ArrayLike = np.array([0, 0, 9.81]),
+    gravity: npt.ArrayLike | None = None,
 ) -> tuple[npt.ArrayLike, npt.ArrayLike]:
     """
     Computes the kinetic and potential energy regressors for a single body.
@@ -210,6 +210,8 @@ def body_energyRegressor(
     Returns:
         tuple[npt.ArrayLike, npt.ArrayLike]: Kinetic and potential energy regressors.
     """
+    if gravity is None:
+        gravity = np.array([0, 0, 9.81])
 
     kinetic = np.array(
         [
@@ -253,7 +255,7 @@ def mj_energyRegressor(mj_model, mj_data, body_offset: int = 0) -> tuple[npt.Arr
 
     Returns:
         tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]: kinetic, potential, and total energy regressors for the whole model
-    """
+    """  # noqa
 
     njoints = mj_model.njnt
     energy_regressor = np.zeros(njoints * 10)

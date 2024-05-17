@@ -41,12 +41,12 @@ Functions:
 
 For more information and derivations, please consider reviewing the following references:
 - Rucker C, Wensing PM. Smooth parameterization of rigid-body inertia. IEEE Robotics and Automation Letters. 2022 Jan 21;7(2):2771-8.
-- Wensing PM, Kim S, Slotine JJ. Linear matrix inequalities for physically consistent inertial parameter identification: 
+- Wensing PM, Kim S, Slotine JJ. Linear matrix inequalities for physically consistent inertial parameter identification:
         A statistical perspective on the mass distribution. IEEE Robotics and Automation Letters. 2017 Jul 20;3(1):60-7.
 
 Additional discussions and derivations are available at:
 https://colab.research.google.com/drive/1xFte2FT0nQ0ePs02BoOx4CmLLw5U-OUZ#scrollTo=Xt86l6AtZBhI
-"""
+"""  # noqa: E501
 
 import numpy as np
 
@@ -236,7 +236,7 @@ def pseudo2cholesky(pseudo_inertia: np.ndarray) -> np.ndarray:
 
     Returns:
         np.ndarray: A 4x4 upper triangular Cholesky matrix U.
-    """
+    """  # noqa: E501
 
     n = pseudo_inertia.shape[0]
     indices = np.arange(n - 1, -1, -1)  # Indices to reverse the order
