@@ -1,1 +1,1 @@
-from .modeling import Y_body, mj_bodyRegressor, mj_jointRegressor
+from .regressors import body_dynamicsRegressor, mj_bodyRegressor, mj_jointRegressor

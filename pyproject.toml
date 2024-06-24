@@ -28,8 +28,10 @@ repository = "https://github.com/lvjonok/mujoco-sysid.git"
 requires = ["setuptools>=43.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["mujoco_sysid"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mujoco_sysid*"]
+
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
