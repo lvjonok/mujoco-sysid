@@ -27,3 +27,17 @@ def test_get_dynamic_parameters():
         # a threshold of 0.06 is used because the inertia matrix is different in the two models
         # it is still enough to verify that we converted the parameters correctly
         assert np.linalg.norm(pinparams[4:] - mjparams[4:]) < 0.06
+
+
+def test_set_dynamic_parameters():
+    import numpy as np
+    from robot_descriptions.z1_mj_description import MJCF_PATH
+
+    # Load the model
+    model = mujoco.MjModel.from_xml_path(MJCF_PATH)
+
+    param = parameters.get_dynamic_parameters(model, 1)
+    parameters.set_dynamic_parameters(model, 1, param)
+
+    # the relatively high threshold is result of the eigen decomposition
+    assert np.allclose(param, parameters.get_dynamic_parameters(model, 1), atol=2e-5), "Parameters are not the same"
