@@ -29,9 +29,20 @@ def get_dynamic_parameters(mjmodel, body_id) -> npt.ArrayLike:
     R = r_flat.reshape(3, 3)
 
     shift = -mass * skew(rc) @ skew(rc)
-    mjinertia = R.T @ np.diag(diag_inertia) @ R + shift
+    mjinertia = R @ np.diag(diag_inertia) @ R.T + shift
 
-    return np.concatenate([mass, mass * rc, mjinertia[np.triu_indices(3)]])
+    upper_triangular = np.array(
+        [
+            mjinertia[0, 0],
+            mjinertia[0, 1],
+            mjinertia[1, 1],
+            mjinertia[0, 2],
+            mjinertia[1, 2],
+            mjinertia[2, 2],
+        ]
+    )
+
+    return np.concatenate([mass, mass * rc, upper_triangular])
 
 
 def set_dynamic_parameters(mjmodel, body_id, theta: npt.ArrayLike) -> None:

@@ -233,7 +233,17 @@ def body_energyRegressor(
     return kinetic, potential
 
 
-def mj_energyRegressor(mj_model, mj_data, body_offset: int = 0) -> tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]:
+def get_jacobian(mjmodel, mjdata, bodyid):
+    R = mjdata.xmat[bodyid].reshape(3, 3)
+    # r = mjdata.xpos[bodyid]
+
+    jacp, jacr = np.zeros((3, 6)), np.zeros((3, 6))
+    mujoco.mj_jacBody(mjmodel, mjdata, jacp, jacr, bodyid)
+
+    return np.vstack([R.T @ jacp, R.T @ jacr])
+
+
+def mj_energyRegressor(mj_model, mj_data) -> tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]:
     """
     mj_energyRegressor returns kinetic, potential, and total energy regressors for the whole model.
 
@@ -263,10 +273,21 @@ def mj_energyRegressor(mj_model, mj_data, body_offset: int = 0) -> tuple[npt.Arr
     potential_regressor = np.zeros(njoints * 10)
     velocity = np.zeros(6)
 
-    for i in range(njoints):
-        mujoco.mj_objectVelocity(mj_model, mj_data, 2, i + body_offset, velocity, 1)
-        rotation = mj_data.xmat[i + body_offset].reshape(3, 3).copy()
-        position = mj_data.xpos[i + body_offset]
+    for i, bodyid in enumerate(mj_model.jnt_bodyid):
+        # jacp, jacr = np.zeros((3, 6)), np.zeros((3, 6))
+        # mujoco.mj_jacBody(mj_model, mj_data, jacp, jacr, bodyid)
+        rotation = mj_data.xmat[bodyid].reshape(3, 3)
+        position = mj_data.xpos[bodyid]
+        # jac = np.vstack([rotation.T @ jacp, rotation.T @ jacr])
+        jac = get_jacobian(mj_model, mj_data, bodyid)
+
+        # with np.printoptions(precision=3, suppress=True):
+        #     print(np.vstack([R.T @ jacp, R.T @ jacr]))
+
+        myspatial = jac @ mj_data.qvel
+
+        mujoco.mj_objectVelocity(mj_model, mj_data, 2, bodyid, velocity, 1)
+        print("spatial", myspatial, velocity)
 
         v, w = velocity[3:], velocity[:3]
         kinetic, potential = body_energyRegressor(v, w, position, rotation)
