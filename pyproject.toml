@@ -19,6 +19,8 @@ examples = [
     "robot_descriptions",
     "mediapy",
 ]
+mjx = ["mujoco-mjx", "jax[cuda12]"]
+mjx_cpu = ["mujoco-mjx", "jax"]
 
 [project.urls]
 homepage = "https://github.com/lvjonok/mujoco-sysid"
