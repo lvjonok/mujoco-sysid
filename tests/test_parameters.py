@@ -24,9 +24,7 @@ def test_get_dynamic_parameters():
         assert np.allclose(pinparams[1:4], mjparams[1:4])
 
         # check that the inertia matrix is close
-        # a threshold of 0.06 is used because the inertia matrix is different in the two models
-        # it is still enough to verify that we converted the parameters correctly
-        assert np.linalg.norm(pinparams[4:] - mjparams[4:]) < 0.06
+        assert np.allclose(pinparams[4:], mjparams[4:], atol=1e-6), "Inertia matrix is not the same"
 
 
 def test_set_dynamic_parameters():
@@ -39,5 +37,13 @@ def test_set_dynamic_parameters():
     param = parameters.get_dynamic_parameters(model, 1)
     parameters.set_dynamic_parameters(model, 1, param)
 
-    # the relatively high threshold is result of the eigen decomposition
-    assert np.allclose(param, parameters.get_dynamic_parameters(model, 1), atol=2e-5), "Parameters are not the same"
+    next_param = parameters.get_dynamic_parameters(model, 1)
+
+    # mass is the same
+    assert np.isclose(param[0], next_param[0])
+
+    # center of mass is the same
+    assert np.allclose(param[1:4], next_param[1:4])
+
+    # inertia matrix is the same
+    assert np.allclose(param[4:], next_param[4:], atol=1e-6), "Inertia matrix is not the same"

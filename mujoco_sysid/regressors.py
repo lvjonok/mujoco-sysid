@@ -233,7 +233,16 @@ def body_energyRegressor(
     return kinetic, potential
 
 
-def mj_energyRegressor(mj_model, mj_data, body_offset: int = 0) -> tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]:
+def get_jacobian(mjmodel, mjdata, bodyid):
+    R = mjdata.xmat[bodyid].reshape(3, 3)
+
+    jacp, jacr = np.zeros((3, 6)), np.zeros((3, 6))
+    mujoco.mj_jacBody(mjmodel, mjdata, jacp, jacr, bodyid)
+
+    return np.vstack([R.T @ jacr, R.T @ jacp])
+
+
+def mj_energyRegressor(mj_model, mj_data) -> tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]:
     """
     mj_energyRegressor returns kinetic, potential, and total energy regressors for the whole model.
 
@@ -263,15 +272,31 @@ def mj_energyRegressor(mj_model, mj_data, body_offset: int = 0) -> tuple[npt.Arr
     potential_regressor = np.zeros(njoints * 10)
     velocity = np.zeros(6)
 
-    for i in range(njoints):
-        mujoco.mj_objectVelocity(mj_model, mj_data, 2, i + body_offset, velocity, 1)
-        rotation = mj_data.xmat[i + body_offset].reshape(3, 3).copy()
-        position = mj_data.xpos[i + body_offset]
-
+    for i, bodyid in enumerate(mj_model.jnt_bodyid):
+        # same as jacobian @ qvel
+        mujoco.mj_objectVelocity(mj_model, mj_data, 2, bodyid, velocity, 1)
         v, w = velocity[3:], velocity[:3]
+
+        rotation = mj_data.xmat[bodyid].reshape(3, 3)
+        position = mj_data.xpos[bodyid]
+
         kinetic, potential = body_energyRegressor(v, w, position, rotation)
         kinetic_regressor[10 * i : 10 * (i + 1)] = kinetic
         potential_regressor[10 * i : 10 * (i + 1)] = potential
         energy_regressor[10 * i : 10 * (i + 1)] = kinetic + potential
 
     return kinetic_regressor, potential_regressor, energy_regressor
+
+
+def potential_energy_bias(mjmodel):
+    """
+    The bodies before the first joint are considered to be fixed in space.
+    They are included in potential energy calculation, but not in the regressor.
+    """
+
+    bias = 0
+    for i in range(mjmodel.nbody):
+        if i not in mjmodel.jnt_bodyid:
+            bias += mjmodel.body(i).mass[0] * mjmodel.opt.gravity[2] * mjmodel.body(i).ipos[2]
+
+    return bias
