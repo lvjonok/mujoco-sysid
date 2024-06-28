@@ -27,15 +27,23 @@ def test_get_dynamic_parameters():
         assert np.allclose(pinparams[4:], mjparams[4:], atol=1e-6), "Inertia matrix is not the same"
 
 
-# def test_set_dynamic_parameters():
-#     import numpy as np
-#     from robot_descriptions.z1_mj_description import MJCF_PATH
+def test_set_dynamic_parameters():
+    import numpy as np
+    from robot_descriptions.z1_mj_description import MJCF_PATH
 
-#     # Load the model
-#     model = mujoco.MjModel.from_xml_path(MJCF_PATH)
+    # Load the model
+    model = mujoco.MjModel.from_xml_path(MJCF_PATH)
 
-#     param = parameters.get_dynamic_parameters(model, 1)
-#     parameters.set_dynamic_parameters(model, 1, param)
+    param = parameters.get_dynamic_parameters(model, 1)
+    parameters.set_dynamic_parameters(model, 1, param)
 
-#     # the relatively high threshold is result of the eigen decomposition
-#     assert np.allclose(param, parameters.get_dynamic_parameters(model, 1), atol=2e-5), "Parameters are not the same"
+    next_param = parameters.get_dynamic_parameters(model, 1)
+
+    # mass is the same
+    assert np.isclose(param[0], next_param[0])
+
+    # center of mass is the same
+    assert np.allclose(param[1:4], next_param[1:4])
+
+    # inertia matrix is the same
+    assert np.allclose(param[4:], next_param[4:], atol=1e-6), "Inertia matrix is not the same"

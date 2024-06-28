@@ -23,6 +23,9 @@ def muj2pin(qpos: np.ndarray, qvel: np.ndarray) -> tuple:
     pin_pos = qpos.copy()
     pin_vel = qvel.copy()
 
+    if len(pin_pos) == len(qvel):
+        return pin_pos, pin_vel
+
     # Create a quaternion object from the Mujoco orientation (scalar-first)
     q = quaternion(*pin_pos[3:7])
     # Obtain the corresponding rotation matrix
@@ -56,6 +59,9 @@ def pin2muj(pin_pos: np.ndarray, pin_vel: np.ndarray) -> tuple:
     # Copy the position and velocity to avoid modifying the original arrays
     qpos = pin_pos.copy()
     qvel = pin_vel.copy()
+
+    if len(pin_pos) == len(qvel):
+        return qpos, qvel
 
     # Reorder quaternion from scalar-last (Pinocchio) to scalar-first (Mujoco)
     qpos[[3, 4, 5, 6]] = qpos[[6, 3, 4, 5]]

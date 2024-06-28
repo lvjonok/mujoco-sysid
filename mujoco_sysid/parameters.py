@@ -18,7 +18,7 @@ def get_dynamic_parameters(mjmodel, body_id) -> npt.ArrayLike:
     Returns:
         npt.ArrayLike: theta of the body
     """
-    mass = mjmodel.body(body_id).mass
+    mass = mjmodel.body(body_id).mass[0]
     rc = mjmodel.body(body_id).ipos
     diag_inertia = mjmodel.body(body_id).inertia
 
@@ -28,8 +28,8 @@ def get_dynamic_parameters(mjmodel, body_id) -> npt.ArrayLike:
 
     R = r_flat.reshape(3, 3)
 
-    shift = -mass * skew(rc) @ skew(rc)
-    mjinertia = R @ np.diag(diag_inertia) @ R.T + shift
+    shift = mass * skew(rc) @ skew(rc)
+    mjinertia = R @ np.diag(diag_inertia) @ R.T - shift
 
     upper_triangular = np.array(
         [
@@ -42,7 +42,7 @@ def get_dynamic_parameters(mjmodel, body_id) -> npt.ArrayLike:
         ]
     )
 
-    return np.concatenate([mass, mass * rc, upper_triangular])
+    return np.concatenate([[mass], mass * rc, upper_triangular])
 
 
 def set_dynamic_parameters(mjmodel, body_id, theta: npt.ArrayLike) -> None:
@@ -57,14 +57,19 @@ def set_dynamic_parameters(mjmodel, body_id, theta: npt.ArrayLike) -> None:
     mass = theta[0]
     rc = theta[1:4] / mass
     inertia = theta[4:]
-    inertia_full = np.zeros((3, 3))
-    inertia_full[np.triu_indices(3)] = inertia
+    inertia_full = np.array(
+        [
+            [inertia[0], inertia[1], inertia[3]],
+            [inertia[1], inertia[2], inertia[4]],
+            [inertia[3], inertia[4], inertia[5]],
+        ]
+    )
 
     # shift the inertia
-    inertia_full -= -mass * skew(rc) @ skew(rc)
+    inertia_full += mass * skew(rc) @ skew(rc)
 
     # eigen decomposition
-    eigval, eigvec = np.linalg.eig(inertia_full)
+    eigval, eigvec = np.linalg.eigh(inertia_full)
     R = eigvec
     diag_inertia = eigval
 
@@ -73,7 +78,7 @@ def set_dynamic_parameters(mjmodel, body_id, theta: npt.ArrayLike) -> None:
         raise ValueError("Cannot deduce inertia matrix because RIR^T is singular.")
 
     # set the mass
-    mjmodel.body(body_id).mass = mass
+    mjmodel.body(body_id).mass = np.array([mass])
     mjmodel.body(body_id).ipos = rc
 
     # set the orientation
