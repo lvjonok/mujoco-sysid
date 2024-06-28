@@ -1,8 +1,8 @@
 import jax.numpy as jnp
 import jax.typing as jpt
+from jax.scipy.spatial.transform import Rotation
 from mujoco import mjx
 from mujoco.mjx._src import math
-from jax.scipy.spatial.transform import Rotation
 
 
 def skew(vector: jpt.ArrayLike) -> jpt.ArrayLike:
