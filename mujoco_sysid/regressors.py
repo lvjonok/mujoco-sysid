@@ -23,7 +23,7 @@ import numpy as np
 from numpy import typing as npt
 
 
-def body_dynamicsRegressor(
+def body_regressor(
     v_lin: npt.ArrayLike, v_ang: npt.ArrayLike, a_lin: npt.ArrayLike, a_ang: npt.ArrayLike
 ) -> npt.ArrayLike:
     """Y_body returns a regressor for a single rigid body
@@ -73,7 +73,7 @@ def body_dynamicsRegressor(
     # fmt: on
 
 
-def mj_bodyRegressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
+def joint_body_regressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
     """mj_bodyRegressor returns a regressor for a single rigid body
 
     This function calculates the regressor for a single rigid body in the MuJoCo model.
@@ -103,13 +103,13 @@ def mj_bodyRegressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
     mujoco.mju_cross(_cross, w, v)
 
     # if floating, should be cancelled
-    if mj_model.nq != mj_model.nv:
-        dv -= _cross
+    # if mj_model.nq != mj_model.nv:
+    dv -= _cross
 
-    return body_dynamicsRegressor(v, w, dv, dw)
+    return body_regressor(v, w, dv, dw)
 
 
-def mj_jointRegressor(mj_model, mj_data, body_offset=0) -> npt.ArrayLike:
+def joint_torque_regressor(mj_model, mj_data) -> npt.ArrayLike:
     """mj_jointRegressor returns a regressor for the whole model
 
     This function calculates the regressor for the whole model in the MuJoCo model.
@@ -154,7 +154,7 @@ def mj_jointRegressor(mj_model, mj_data, body_offset=0) -> npt.ArrayLike:
 
     for i in range(njoints):
         # calculate cody regressors
-        body_regressors[6 * i : 6 * (i + 1), 10 * i : 10 * (i + 1)] = mj_bodyRegressor(
+        body_regressors[6 * i : 6 * (i + 1), 10 * i : 10 * (i + 1)] = joint_body_regressor(
             mj_model, mj_data, i + body_offset
         )
 
