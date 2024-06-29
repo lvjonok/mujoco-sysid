@@ -1,8 +1,4 @@
 import jax
-
-jax.config.update("jax_default_device", jax.devices("cpu")[0])
-
-
 import jax.numpy as jnp
 import mujoco
 import mujoco.mjx as mjx
