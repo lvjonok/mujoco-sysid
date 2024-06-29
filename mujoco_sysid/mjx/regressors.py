@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 import jax.typing as jpt
 import mujoco.mjx as mjx
+from mujoco.mjx._src.math import transform_motion
 
 
 def object_velocity(mjx_model: mjx.Model, mjx_data: mjx.Data, bodyid) -> jpt.ArrayLike:
@@ -11,19 +12,8 @@ def object_velocity(mjx_model: mjx.Model, mjx_data: mjx.Data, bodyid) -> jpt.Arr
     vec = mjx_data.cvel[bodyid]
     newpos = pos
     oldpos = mjx_data.subtree_com[mjx_model.body_rootid[bodyid]]
-    rotnew2old = rot
 
-    # apply translation
-    dif = newpos - oldpos
-    cros = jnp.cross(dif, vec[3:])
-    vec = vec.at[3:].set(vec[3:] + cros)
-
-    # apply rotation
-    res = jnp.zeros(6)
-    res = res.at[:3].set(rotnew2old.T @ vec[:3])
-    res = res.at[3:].set(rotnew2old.T @ vec[3:])
-
-    return res
+    return transform_motion(vec, newpos - oldpos, rot)
 
 
 def energy_regressor(mjx_model: mjx.Model, mjx_data: mjx.Data) -> tuple[jpt.ArrayLike, jpt.ArrayLike, jpt.ArrayLike]:
