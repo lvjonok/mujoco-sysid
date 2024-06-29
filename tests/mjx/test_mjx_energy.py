@@ -2,8 +2,8 @@ import jax
 import jax.numpy as jnp
 import mujoco
 import mujoco.mjx as mjx
-import numpy as np
 
+from mujoco_sysid import regressors as mj_reg
 from mujoco_sysid.mjx import parameters, regressors
 
 key = jax.random.PRNGKey(0)
@@ -16,90 +16,135 @@ def test_energy_match_z1():
     # alter the model so it becomes mjx compatible
     mjmodel.dof_frictionloss = 0
     mjmodel.opt.integrator = 0
-    mjdata = mujoco.MjData(mjmodel)
-
-    mjxmodel = mjx.put_model(mjmodel)
-    print(mjxmodel.jnt_bodyid)
-    assert len(mjxmodel.jnt_bodyid) == mjmodel.njnt, f"{len(mjxmodel.jnt_bodyid)} != {mjmodel.njnt}"
-    mjxdata = mjx.put_data(mjmodel, mjdata)
-
-    # enable energy
-    mjmodel.opt.enableflags |= mujoco.mjtEnableBit.mjENBL_ENERGY
     # disable friction, contact and limits
     mjmodel.opt.disableflags |= (
         mujoco.mjtDisableBit.mjDSBL_CONTACT
         | mujoco.mjtDisableBit.mjDSBL_FRICTIONLOSS
         | mujoco.mjtDisableBit.mjDSBL_LIMIT
     )
+    mjdata = mujoco.MjData(mjmodel)
+
+    mjxmodel = mjx.put_model(mjmodel)
+    assert len(mjxmodel.jnt_bodyid) == mjmodel.njnt, f"{len(mjxmodel.jnt_bodyid)} != {mjmodel.njnt}"
+    # mjxdata = mjx.put_data(mjmodel, mjdata)
+
+    # enable energy
+    mjmodel.opt.enableflags |= mujoco.mjtEnableBit.mjENBL_ENERGY
 
     # get vector of dynamic parameters
     theta = jnp.concatenate([parameters.get_dynamic_parameters(mjxmodel, i) for i in mjxmodel.jnt_bodyid])
     assert theta.shape == (mjxmodel.njnt * 10,)
 
     # generate random samples of configuration and velocity
-    N_SAMPLES = 1000
-    for _ in range(N_SAMPLES):
-        q, v = jax.random.normal(key, (mjmodel.nq,)), jnp.zeros(mjmodel.nv)
+    N_SAMPLES = 10000
+    sampled_q, sampled_v = (
+        jax.random.normal(key, (mjmodel.nq, N_SAMPLES)),
+        jax.random.normal(key, (mjmodel.nv, N_SAMPLES)),
+    )
 
-        mjdata.qpos[:] = q.copy()
-        mjdata.qvel[:] = v.copy()
+    # compute the expected energy for each sample
+    expected_energy = []
+    for i in range(N_SAMPLES):
+        mjdata.qpos[:] = sampled_q[:, i]
+        mjdata.qvel[:] = sampled_v[:, i]
 
         mujoco.mj_step(mjmodel, mjdata)
 
         mj_en = mjdata.energy.copy()
-        mj_en[0] += regressors.potential_energy_bias(mjmodel)
+        mj_en[0] += mj_reg.potential_energy_bias(mjmodel)
 
-        # energy we expect and computed through simulator
-        expected_energy = np.sum(mj_en)
+        expected_energy.append(jnp.sum(mj_en))
 
-        # compute regressor of the total energy
-        mjxdata = mjx.step(mjxmodel, mjxdata.replace(qpos=q, qvel=v))
-        reg_en = regressors.energy_regressor(mjxmodel, mjxdata)[2]
+    expected_energy = jnp.array(expected_energy)
+    # compute the batched regressors using mjx and find the computed energy
 
-        computed_energy = reg_en @ theta
+    @jax.vmap
+    def compute_energy(q, v):
+        mjx_data = mjx.make_data(mjxmodel)
+        mjx_data = mjx_data.replace(qpos=q, qvel=v)
+        mjx_data = mjx.step(mjxmodel, mjx_data)
 
-        assert np.isclose(
-            expected_energy, computed_energy, atol=1e-6
-        ), f"Expected energy: {expected_energy}, Computed energy: {computed_energy}"
+        # compute the regressor
+        reg_en = regressors.energy_regressor(mjxmodel, mjx_data)[2]
+        computed_energy = jnp.dot(reg_en, theta)
+
+        return computed_energy
+
+    # compute the energy for each sample
+    computed_energy = jax.jit(compute_energy)(sampled_q.T, sampled_v.T)
+
+    # compare the computed energy with the expected energy
+    assert jnp.allclose(expected_energy, computed_energy, atol=1e-5)
 
 
-# def test_energy_match_skydio():
-#     from robot_descriptions.skydio_x2_mj_description import MJCF_PATH
+def test_energy_match_skydio():
+    from robot_descriptions.skydio_x2_mj_description import MJCF_PATH
 
-#     mjmodel = mujoco.MjModel.from_xml_path(MJCF_PATH)
-#     # enable energy
-#     mjmodel.opt.enableflags |= mujoco.mjtEnableBit.mjENBL_ENERGY
-#     # disable friction, contact and limits
-#     mjmodel.opt.disableflags |= (
-#         mujoco.mjtDisableBit.mjDSBL_CONTACT
-#         | mujoco.mjtDisableBit.mjDSBL_FRICTIONLOSS
-#         | mujoco.mjtDisableBit.mjDSBL_LIMIT
-#     )
-#     mjdata = mujoco.MjData(mjmodel)
+    mjmodel = mujoco.MjModel.from_xml_path(MJCF_PATH)
+    # alter the model so it becomes mjx compatible
+    mjmodel.dof_frictionloss = 0
+    mjmodel.opt.integrator = 0
+    # disable friction, contact and limits
+    mjmodel.opt.disableflags |= (
+        mujoco.mjtDisableBit.mjDSBL_CONTACT
+        | mujoco.mjtDisableBit.mjDSBL_FRICTIONLOSS
+        | mujoco.mjtDisableBit.mjDSBL_LIMIT
+    )
+    mjdata = mujoco.MjData(mjmodel)
 
-#     # generate random samples of configuration and velocity
-#     N_SAMPLES = 1000
-#     for _ in range(N_SAMPLES):
-#         q, v = np.random.randn(mjmodel.nq), np.zeros(mjmodel.nv)
+    mjxmodel = mjx.put_model(mjmodel)
+    assert len(mjxmodel.jnt_bodyid) == mjmodel.njnt, f"{len(mjxmodel.jnt_bodyid)} != {mjmodel.njnt}"
+    # mjxdata = mjx.put_data(mjmodel, mjdata)
 
-#         mjdata.qpos[:] = q.copy()
-#         mjdata.qvel[:] = v.copy()
+    # enable energy
+    mjmodel.opt.enableflags |= mujoco.mjtEnableBit.mjENBL_ENERGY
 
-#         mujoco.mj_step(mjmodel, mjdata)
+    # get vector of dynamic parameters
+    theta = jnp.concatenate([parameters.get_dynamic_parameters(mjxmodel, i) for i in mjxmodel.jnt_bodyid])
+    assert theta.shape == (mjxmodel.njnt * 10,)
 
-#         mj_en = mjdata.energy.copy()
-#         mj_en[0] += regressors.potential_energy_bias(mjmodel)
+    # generate random samples of configuration and velocity
+    N_SAMPLES = 10000
+    sampled_q, sampled_v = (
+        jax.random.normal(key, (mjmodel.nq, N_SAMPLES)),
+        jax.random.normal(key, (mjmodel.nv, N_SAMPLES)),
+    )
 
-#         # energy we expect and computed through simulator
-#         expected_energy = np.sum(mj_en)
+    # compute the expected energy for each sample
+    expected_energy = []
+    for i in range(N_SAMPLES):
+        mjdata.qpos[:] = sampled_q[:, i]
+        mjdata.qvel[:] = sampled_v[:, i]
 
-#         # get vector of dynamic parameters
-#         theta = np.concatenate([parameters.get_dynamic_parameters(mjmodel, i) for i in mjmodel.jnt_bodyid])
-#         # compute regressor of the total energy
-#         reg_en = regressors.mj_energyRegressor(mjmodel, mjdata)[2]
+        mujoco.mj_step(mjmodel, mjdata)
 
-#         computed_energy = reg_en @ theta
+        mj_en = mjdata.energy.copy()
+        mj_en[0] += mj_reg.potential_energy_bias(mjmodel)
 
-#         assert np.isclose(
-#             expected_energy, computed_energy, atol=1e-6
-#         ), f"Expected energy: {expected_energy}, Computed energy: {computed_energy}"
+        expected_energy.append(jnp.sum(mj_en))
+
+    expected_energy = jnp.array(expected_energy)
+    # compute the batched regressors using mjx and find the computed energy
+
+    @jax.vmap
+    def compute_energy(q, v):
+        mjx_data = mjx.make_data(mjxmodel)
+        mjx_data = mjx_data.replace(qpos=q, qvel=v)
+        mjx_data = mjx.step(mjxmodel, mjx_data)
+
+        # compute the regressor
+        reg_en = regressors.energy_regressor(mjxmodel, mjx_data)[2]
+        computed_energy = jnp.dot(reg_en, theta)
+
+        return computed_energy
+
+    # compute the energy for each sample
+    computed_energy = jax.jit(compute_energy)(sampled_q.T, sampled_v.T)
+
+    # compare the computed energy with the expected energy
+    assert jnp.allclose(expected_energy, computed_energy, atol=1e-5)
+
+
+if __name__ == "__main__":
+    test_energy_match_z1()
+    test_energy_match_skydio()
