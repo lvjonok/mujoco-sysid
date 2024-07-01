@@ -105,8 +105,8 @@ def joint_body_regressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
     # if floating, should be cancelled
     # if mj_model.nq != mj_model.nv:
 
-    rot = mj_data.xmat[body_id - 1].reshape(3, 3)
-    # dv -= _cross
+    # rot = mj_data.xmat[body_id - 1].reshape(3, 3)
+    dv -= _cross
     # dv = rot @ dv
 
     return body_regressor(v, w, dv, dw)

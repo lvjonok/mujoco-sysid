@@ -58,58 +58,83 @@ def test_joint_body_regressor():
     pindata = pinmodel.createData()
 
     mjmodel = mujoco.MjModel.from_xml_path(MJCF_PATH)
+    for act_id in range(4):
+        mjmodel.actuator(act_id).ctrlrange = np.array([-1e4, 1e4])
     mjdata = mujoco.MjData(mjmodel)
+    theta = get_dynamic_parameters(mjmodel, 1)
 
     SAMPLES = 1
 
     for _ in range(SAMPLES):
-        # q = np.random.rand(pinmodel.nq)
+        q = np.random.rand(pinmodel.nq)
         # normalize the quaternion
-        # q[3:7] /= np.linalg.norm(q[3:7])
-        q = np.array([0, 0, 1, 1, 0, 0, 0])
+        q[3:7] /= np.linalg.norm(q[3:7])
+        # q = np.array([0, 0, 1, 1, 0, 0, 0])
         v, dv = np.random.rand(pinmodel.nv), np.random.rand(pinmodel.nv)
 
-        v *= 0
-        # dv *= 0
-        pinq, pinv = muj2pin(q, v)
+        # v[:3] *= 0  # FIXME: occasionally when we set the linear velocity to zero, the test works
+        # otherwise the inverse dynamics does not match
 
-        # v = np.array([0, 0, 1, 0, 0, 0])
-        # dv[3:6] *= 0
+        pinq, pinv = muj2pin(q, v)
 
         print("Configuration")
         print(f"Pinocchio: {pinq}, {pinv}, {dv}")
         print(f"Mujoco: {q}, {v}, {dv}")
 
-        pin.rnea(pinmodel, pindata, pinq, pinv, dv)
+        # Selector matrix for actuators
+        selector = np.array(
+            [
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [1.0, 1.0, 1.0, 1.0],
+                [-0.18, 0.18, 0.18, -0.18],
+                [0.14, 0.14, -0.14, -0.14],
+                [-0.0201, 0.0201, 0.0201, -0.0201],
+            ]
+        )
+        ctrl = np.random.randn(4)
+        tau = selector @ ctrl
+        dv = pin.aba(pinmodel, pindata, pinq, pinv, tau)
+
+        result = pin.rnea(pinmodel, pindata, pinq, pinv, dv)
 
         mjdata.qpos[:] = q
         mjdata.qvel[:] = v
-        mjdata.qacc[:] = dv
-        mujoco.mj_inverse(mjmodel, mjdata)
+        # mjdata.qacc[:] = dv
+        mjdata.ctrl[:] = ctrl
 
-        theta = get_dynamic_parameters(mjmodel, 1)
+        mujoco.mj_step(mjmodel, mjdata)
+        # mujoco.mj_inverse(mjmodel, mjdata)
 
         print("Joint space forces")
-        print(f"Pinocchio: {pindata.f[1]}")
+        print(f"Pinocchio: {pindata.f[1]} {result}")
 
-        # rot = mjdata.ximat[1].reshape(3, 3).T
-        print(f"Mujoco: {mjdata.qfrc_inverse}")
+        rot = mjdata.xmat[1].reshape(3, 3)
+        print("rotation", rot)
+        mujtau = mjdata.qfrc_actuator.copy()
 
-        print("Diff", pindata.f[1] - mjdata.qfrc_inverse)
+        mujtau[:3] = rot.T @ mujtau[:3]
+        print(f"Mujoco: {mjdata.qfrc_actuator} {mujtau} {mjdata.qfrc_inverse}")
+        # jac_lin = np.zeros((3, mjmodel.nv))
+        # jac_rot = np.zeros((3, mjmodel.nv))
+        # mujoco.mj_jacBody(mjmodel, mjdata, jac_lin, jac_rot, mjmodel.jnt_bodyid[0])
 
-        # {mjdata.qfrc_passive} {mjmodel.dof_armature} {mjdata.qfrc_constraint}")
+        # rotation = mjdata.xmat[mjmodel.jnt_bodyid[0]].reshape(3, 3).T
+        # print(f"rotation: {rotation}")
+        # jac = np.vstack((rotation.T @ jac_lin, rotation.T @ jac_rot))
+
+        # print("Test", jac @ mjdata.qfrc_inverse)
+        # print(jac)
+
+        # print("Diff", pindata.f[1] - mjdata.qfrc_inverse)
+        # print(f"{mjdata.qfrc_passive} {mjmodel.dof_armature} {mjdata.qfrc_constraint}")
+        # return
+
         # print(rot)
         # print(np.concatenate((rot.T @ mjdata.qfrc_inverse[:3], rot.T @ mjdata.qfrc_inverse[3:])))
 
         for jnt_id in range(pinmodel.njoints - 1):
             pinY = pin.jointBodyRegressor(pinmodel, pindata, jnt_id + 1)
-
-            # jac_lin = np.zeros((3, mjmodel.nv))
-            # jac_rot = np.zeros((3, mjmodel.nv))
-            # mujoco.mj_jacBody(mjmodel, mjdata, jac_lin, jac_rot, mjmodel.jnt_bodyid[jnt_id])
-
-            # rotation = mjdata.xmat[mjmodel.jnt_bodyid[jnt_id]].reshape(3, 3)
-            # jac = np.vstack((rotation.T @ jac_lin, rotation.T @ jac_rot))
 
             mjY = regressors.joint_body_regressor(mjmodel, mjdata, mjmodel.jnt_bodyid[jnt_id])
             # f = pindata.f[jnt_id + 1]
@@ -120,7 +145,7 @@ def test_joint_body_regressor():
             ), f"Joint {jnt_id} failed. Computed: {pinY @ theta}, Expected: {np.array(pindata.f[jnt_id + 1])}"
 
             print(f"Pinocchio force expected: {pinY @ theta} actual: {np.array(pindata.f[1])}")
-            print(f"Mujoco force expected: {mjY @ theta} actual: {mjdata.qfrc_inverse}")
+            print(f"Mujoco force expected: {mjY @ theta} actual: {mujtau}")
 
             assert np.allclose(
                 mjY, pinY, atol=1e-6
