@@ -24,31 +24,33 @@ def test_body_regressor():
 
 def test_joint_body_regressor():
     import pinocchio as pin
-    # from robot_descriptions.z1_description import URDF_PATH
-    # from robot_descriptions.z1_mj_description import MJCF_PATH
+    from robot_descriptions.z1_description import URDF_PATH
+    from robot_descriptions.z1_mj_description import MJCF_PATH
 
-    # pinmodel = pin.buildModelFromUrdf(URDF_PATH)
-    # pindata = pinmodel.createData()
+    pinmodel = pin.buildModelFromUrdf(URDF_PATH)
+    pindata = pinmodel.createData()
 
-    # mjmodel = mujoco.MjModel.from_xml_path(MJCF_PATH)
-    # mjdata = mujoco.MjData(mjmodel)
+    mjmodel = mujoco.MjModel.from_xml_path(MJCF_PATH)
+    mjdata = mujoco.MjData(mjmodel)
 
-    # SAMPLES = 100
+    SAMPLES = 10000
 
-    # for _ in range(SAMPLES):
-    #     q, v, dv = np.random.rand(pinmodel.nq), np.random.rand(pinmodel.nv), np.random.rand(pinmodel.nv)
-    #     pin.rnea(pinmodel, pindata, q, v, dv)
+    for _ in range(SAMPLES):
+        q, v, dv = np.random.rand(pinmodel.nq), np.random.rand(pinmodel.nv), np.random.rand(pinmodel.nv)
+        pin.rnea(pinmodel, pindata, q, v, dv)
 
-    #     mjdata.qpos[:] = q
-    #     mjdata.qvel[:] = v
-    #     mjdata.qacc[:] = dv
-    #     mujoco.mj_inverse(mjmodel, mjdata)
+        mjdata.qpos[:] = q
+        mjdata.qvel[:] = v
+        mjdata.qacc[:] = dv
+        mujoco.mj_inverse(mjmodel, mjdata)
 
-    #     for jnt_id in range(pinmodel.njoints - 1):
-    #         pinY = pin.jointBodyRegressor(pinmodel, pindata, jnt_id + 1)
-    #         mjY = regressors.joint_body_regressor(mjmodel, mjdata, mjmodel.jnt_bodyid[jnt_id])
+        for jnt_id in range(pinmodel.njoints - 1):
+            pinY = pin.jointBodyRegressor(pinmodel, pindata, jnt_id + 1)
+            mjY = regressors.joint_body_regressor(mjmodel, mjdata, mjmodel.jnt_bodyid[jnt_id])
 
-    #         assert np.allclose(mjY, pinY, atol=1e-6), f"Joint {jnt_id} failed. Pinocchio: {pinY}, Mujoco: {mjY}"
+            assert np.allclose(mjY, pinY, atol=1e-6), f"Joint {jnt_id} failed. Pinocchio: {pinY}, Mujoco: {mjY}"
+
+    print('z1 matched succsessfully')
 
     # Test for the floating base joint
     from robot_descriptions.skydio_x2_description import URDF_PATH
