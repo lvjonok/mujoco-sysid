@@ -1,8 +1,8 @@
-import numpy as np
 import mujoco
+import numpy as np
+
 from mujoco_sysid import regressors
 from mujoco_sysid.utils import muj2pin
-from mujoco_sysid.parameters import get_dynamic_parameters
 
 np.random.seed(0)
 
