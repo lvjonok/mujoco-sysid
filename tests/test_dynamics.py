@@ -45,6 +45,7 @@ def test_joint_body_regressor():
         mjdata.qvel[:] = v
         mjdata.qacc[:] = dv
         mujoco.mj_inverse(mjmodel, mjdata)
+        mujoco.mj_rnePostConstraint(mjmodel, mjdata)
 
         for jnt_id in range(pinmodel.njoints - 1):
             pinY = pin.jointBodyRegressor(pinmodel, pindata, jnt_id + 1)
@@ -76,6 +77,7 @@ def test_joint_body_regressor():
         mjdata.qvel[:] = v
         mjdata.qacc[:] = dv
         mujoco.mj_inverse(mjmodel, mjdata)
+        mujoco.mj_rnePostConstraint(mjmodel, mjdata)
 
         pin.rnea(pinmodel, pindata, pinq, pinv, pindv)
 
@@ -110,6 +112,7 @@ def test_joint_torque_regressor():
         mjdata.qvel[:] = v
         mjdata.qacc[:] = dv
         mujoco.mj_inverse(mjmodel, mjdata)
+        mujoco.mj_rnePostConstraint(mjmodel, mjdata)
 
         pinY = pin.computeJointTorqueRegressor(pinmodel, pindata, q, v, dv)
         mjY = regressors.joint_torque_regressor(mjmodel, mjdata)

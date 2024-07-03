@@ -94,7 +94,6 @@ def joint_body_regressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
     _cross = np.zeros(3)
 
     mujoco.mj_objectVelocity(mj_model, mj_data, 2, body_id, velocity, 1)
-    mujoco.mj_rnePostConstraint(mj_model, mj_data)
     mujoco.mj_objectAcceleration(mj_model, mj_data, 2, body_id, accel, 1)
 
     v, w = velocity[3:], velocity[:3]
