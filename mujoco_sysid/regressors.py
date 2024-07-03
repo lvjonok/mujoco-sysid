@@ -109,6 +109,15 @@ def joint_body_regressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
     return body_regressor(v, w, dv, dw)
 
 
+def get_jacobian(mjmodel, mjdata, bodyid):
+    R = mjdata.xmat[bodyid].reshape(3, 3)
+
+    jac_lin, jac_rot = np.zeros((3, 6)), np.zeros((3, 6))
+    mujoco.mj_jacBody(mjmodel, mjdata, jac_lin, jac_rot, bodyid)
+
+    return np.vstack([R.T @ jac_lin, R.T @ jac_rot])
+
+
 def joint_torque_regressor(mj_model, mj_data) -> npt.ArrayLike:
     """mj_jointRegressor returns a regressor for the whole model
 
@@ -140,7 +149,6 @@ def joint_torque_regressor(mj_model, mj_data) -> npt.ArrayLike:
     Args:
         mj_model: MuJoCo model
         mj_data: MuJoCo data
-        body_offset (int, optional): Starting index of the body, useful when some dummy bodies are introduced.
 
     Returns:
         npt.ArrayLike: regressor for the whole model
@@ -149,19 +157,12 @@ def joint_torque_regressor(mj_model, mj_data) -> npt.ArrayLike:
     njoints = mj_model.njnt
     body_regressors = np.zeros((6 * njoints, njoints * 10))
     col_jac = np.zeros((6 * njoints, mj_model.nv))
-    jac_lin = np.zeros((3, mj_model.nv))
-    jac_rot = np.zeros((3, mj_model.nv))
 
     for i, body_id in enumerate(mj_model.jnt_bodyid):
         # calculate cody regressors
         body_regressors[6 * i : 6 * (i + 1), 10 * i : 10 * (i + 1)] = joint_body_regressor(mj_model, mj_data, body_id)
 
-        mujoco.mj_jacBody(mj_model, mj_data, jac_lin, jac_rot, body_id)
-
-        # Calculate jacobians
-        rotation = mj_data.xmat[body_id].reshape(3, 3).copy()
-        col_jac[6 * i : 6 * i + 3, :] = rotation.T @ jac_lin.copy()
-        col_jac[6 * i + 3 : 6 * i + 6, :] = rotation.T @ jac_rot.copy()
+        col_jac[6 * i : 6 * i + 6, :] = get_jacobian(mj_model, mj_data, body_id)
 
     return col_jac.T @ body_regressors
 
@@ -229,15 +230,6 @@ def body_energyRegressor(
     potential = np.array([*(gravity.T @ r).flatten(), *(gravity.T @ R).flatten(), 0, 0, 0, 0, 0, 0])
 
     return kinetic, potential
-
-
-def get_jacobian(mjmodel, mjdata, bodyid):
-    R = mjdata.xmat[bodyid].reshape(3, 3)
-
-    jacp, jacr = np.zeros((3, 6)), np.zeros((3, 6))
-    mujoco.mj_jacBody(mjmodel, mjdata, jacp, jacr, bodyid)
-
-    return np.vstack([R.T @ jacr, R.T @ jacp])
 
 
 def mj_energyRegressor(mj_model, mj_data) -> tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]:
