@@ -22,7 +22,7 @@ jobs:
       # Update output format to enable automatic inline annotations.
       - name: Run Ruff
         # run: ruff check --output-format=github .
-        run: ruff format --diff --output-format=github .
+        run: ruff format --diff .
 
   tests:
     runs-on: ubuntu-latest
