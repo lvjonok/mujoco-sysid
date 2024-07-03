@@ -102,12 +102,9 @@ def joint_body_regressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
     dv, dw = accel[3:], accel[:3]
     mujoco.mju_cross(_cross, w, v)
 
-    # if floating, should be cancelled
-    # if mj_model.nq != mj_model.nv:
-
-    # rot = mj_data.xmat[body_id - 1].reshape(3, 3)
-    dv -= _cross
-    # dv = rot @ dv
+    # for floating base, this is already included in dv
+    if mj_model.nq == mj_model.nv:
+        dv -= _cross
 
     return body_regressor(v, w, dv, dw)
 
