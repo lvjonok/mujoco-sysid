@@ -87,6 +87,37 @@ def test_joint_body_regressor():
             assert np.allclose(mjY, pinY, atol=1e-6), f"Joint {jnt_id} failed. Norm diff: {np.linalg.norm(mjY - pinY)}"
 
 
+def test_joint_torque_regressor():
+    import pinocchio as pin
+
+    # Test for fixed base manipulator
+    from robot_descriptions.z1_description import URDF_PATH
+    from robot_descriptions.z1_mj_description import MJCF_PATH
+
+    pinmodel = pin.buildModelFromUrdf(URDF_PATH)
+    pindata = pinmodel.createData()
+
+    mjmodel = mujoco.MjModel.from_xml_path(MJCF_PATH)
+    mjdata = mujoco.MjData(mjmodel)
+
+    SAMPLES = 10000
+
+    for _ in range(SAMPLES):
+        q, v, dv = np.random.rand(pinmodel.nq), np.random.rand(pinmodel.nv), np.random.rand(pinmodel.nv)
+        pin.rnea(pinmodel, pindata, q, v, dv)
+
+        mjdata.qpos[:] = q
+        mjdata.qvel[:] = v
+        mjdata.qacc[:] = dv
+        mujoco.mj_inverse(mjmodel, mjdata)
+
+        pinY = pin.computeJointTorqueRegressor(pinmodel, pindata, q, v, dv)
+        mjY = regressors.joint_torque_regressor(mjmodel, mjdata)
+
+        assert np.allclose(mjY, pinY, atol=1e-6), f"Norm diff: {np.linalg.norm(mjY - pinY)}"
+
+
 if __name__ == "__main__":
     test_body_regressor()
     test_joint_body_regressor()
+    test_joint_torque_regressor()
