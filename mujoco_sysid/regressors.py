@@ -231,7 +231,7 @@ def body_energyRegressor(
     return kinetic, potential
 
 
-def mj_energyRegressor(mj_model, mj_data) -> npt.ArrayLike:
+def energy_regressor(mj_model, mj_data) -> npt.ArrayLike:
     """
     mj_energyRegressor returns kinetic, potential, and total energy regressors for the whole model.
 

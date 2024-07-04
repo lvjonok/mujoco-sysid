@@ -65,7 +65,7 @@ def test_energy_match_z1():
         mjx_data = mjx.step(mjxmodel, mjx_data)
 
         # compute the regressor
-        reg_en = regressors.energy_regressor(mjxmodel, mjx_data)[2]
+        reg_en = regressors.energy_regressor(mjxmodel, mjx_data)
         computed_energy = jnp.dot(reg_en, theta)
 
         return computed_energy
