@@ -2,7 +2,7 @@ import numpy as np
 from quaternion import as_rotation_matrix, quaternion
 
 
-def muj2pin(qpos: np.ndarray, qvel: np.ndarray) -> tuple:
+def muj2pin(qpos: np.ndarray, qvel: np.ndarray, qacc: np.ndarray | None = None) -> tuple:
     """
     Converts Mujoco state to Pinocchio state by adjusting the quaternion representation and rotating the velocity.
 
@@ -13,18 +13,24 @@ def muj2pin(qpos: np.ndarray, qvel: np.ndarray) -> tuple:
     Args:
         qpos (numpy.ndarray): Mujoco qpos array, which includes position and orientation.
         qvel (numpy.ndarray): Mujoco qvel array, which includes linear and angular velocity.
+        qacc (numpy.ndarray, optional): Mujoco qacc array, which includes linear and angular acceleration.
 
     Returns:
         tuple: A tuple containing two numpy.ndarrays:
             - pin_pos (numpy.ndarray): Pinocchio qpos array, with adjusted quaternion and position.
             - pin_vel (numpy.ndarray): Pinocchio qvel array, with velocity rotated to the local frame.
+
     """
     # Copy the position and velocity to avoid modifying the original arrays
     pin_pos = qpos.copy()
     pin_vel = qvel.copy()
+    pin_acc = qacc.copy() if qacc is not None else None
 
     if len(pin_pos) == len(qvel):
-        return pin_pos, pin_vel
+        if qacc is None:
+            return pin_pos, pin_vel
+
+        return pin_pos, pin_vel, pin_acc
 
     # Create a quaternion object from the Mujoco orientation (scalar-first)
     q = quaternion(*pin_pos[3:7])
@@ -36,10 +42,15 @@ def muj2pin(qpos: np.ndarray, qvel: np.ndarray) -> tuple:
     # Reorder quaternion from scalar-first (Mujoco) to scalar-last (Pinocchio)
     pin_pos[[3, 4, 5, 6]] = pin_pos[[4, 5, 6, 3]]
 
+    if qacc is not None:
+        # Rotate the world frame linear acceleration to the local frame
+        pin_acc[0:3] = R.T @ pin_acc[0:3]
+        return pin_pos, pin_vel, pin_acc
+
     return pin_pos, pin_vel
 
 
-def pin2muj(pin_pos: np.ndarray, pin_vel: np.ndarray) -> tuple:
+def pin2muj(pin_pos: np.ndarray, pin_vel: np.ndarray, pin_acc: np.ndarray | None = None) -> tuple:
     """
     Converts Pinocchio state to Mujoco state by adjusting the quaternion representation and rotating the velocity.
 
@@ -50,6 +61,7 @@ def pin2muj(pin_pos: np.ndarray, pin_vel: np.ndarray) -> tuple:
     Args:
         pin_pos (numpy.ndarray): Pinocchio qpos array, which includes position and orientation.
         pin_vel (numpy.ndarray): Pinocchio qvel array, which includes linear and angular velocity.
+        pin_acc (numpy.ndarray, optional): Pinocchio qacc array, which includes linear and angular acceleration.
 
     Returns:
         tuple: A tuple containing two numpy.ndarrays:
@@ -59,9 +71,13 @@ def pin2muj(pin_pos: np.ndarray, pin_vel: np.ndarray) -> tuple:
     # Copy the position and velocity to avoid modifying the original arrays
     qpos = pin_pos.copy()
     qvel = pin_vel.copy()
+    qacc = pin_acc.copy() if pin_acc is not None else None
 
     if len(pin_pos) == len(qvel):
-        return qpos, qvel
+        if qacc is None:
+            return qpos, qvel
+
+        return qpos, qvel, qacc
 
     # Reorder quaternion from scalar-last (Pinocchio) to scalar-first (Mujoco)
     qpos[[3, 4, 5, 6]] = qpos[[6, 3, 4, 5]]
@@ -72,5 +88,9 @@ def pin2muj(pin_pos: np.ndarray, pin_vel: np.ndarray) -> tuple:
     R = as_rotation_matrix(q)
     # Rotate the local frame linear velocity to the world frame
     qvel[0:3] = R @ qvel[0:3]
+
+    if qacc is not None:
+        qacc[0:3] = R @ qacc[0:3]
+        return qpos, qvel, qacc
 
     return qpos, qvel
