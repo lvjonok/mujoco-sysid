@@ -79,7 +79,7 @@ def test_energy_match_skydio():
         # get vector of dynamic parameters
         theta = np.concatenate([parameters.get_dynamic_parameters(mjmodel, i) for i in mjmodel.jnt_bodyid])
         # compute regressor of the total energy
-        reg_en = regressors.mj_energyRegressor(mjmodel, mjdata)[2]
+        reg_en = regressors.mj_energyRegressor(mjmodel, mjdata)
 
         computed_energy = reg_en @ theta
 

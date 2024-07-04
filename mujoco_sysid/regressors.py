@@ -231,7 +231,7 @@ def body_energyRegressor(
     return kinetic, potential
 
 
-def mj_energyRegressor(mj_model, mj_data) -> tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]:
+def mj_energyRegressor(mj_model, mj_data) -> npt.ArrayLike:
     """
     mj_energyRegressor returns kinetic, potential, and total energy regressors for the whole model.
 
@@ -252,13 +252,11 @@ def mj_energyRegressor(mj_model, mj_data) -> tuple[npt.ArrayLike, npt.ArrayLike,
         body_offset (int, optional): Starting index of the body, useful when some dummy bodies are introduced. Defaults to 0.
 
     Returns:
-        tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]: kinetic, potential, and total energy regressors for the whole model
+        npt.ArrayLike: total energy regressor for the whole model
     """  # noqa
 
     njoints = mj_model.njnt
     energy_regressor = np.zeros(njoints * 10)
-    kinetic_regressor = np.zeros(njoints * 10)
-    potential_regressor = np.zeros(njoints * 10)
     velocity = np.zeros(6)
 
     for i, bodyid in enumerate(mj_model.jnt_bodyid):
@@ -270,11 +268,9 @@ def mj_energyRegressor(mj_model, mj_data) -> tuple[npt.ArrayLike, npt.ArrayLike,
         position = mj_data.xpos[bodyid]
 
         kinetic, potential = body_energyRegressor(v, w, position, rotation)
-        kinetic_regressor[10 * i : 10 * (i + 1)] = kinetic
-        potential_regressor[10 * i : 10 * (i + 1)] = potential
         energy_regressor[10 * i : 10 * (i + 1)] = kinetic + potential
 
-    return kinetic_regressor, potential_regressor, energy_regressor
+    return energy_regressor
 
 
 def potential_energy_bias(mjmodel):

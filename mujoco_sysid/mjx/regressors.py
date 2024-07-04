@@ -18,45 +18,46 @@ def object_velocity(mjx_model: mjx.Model, mjx_data: mjx.Data, bodyid) -> jpt.Arr
     return transform_motion(vel, pos - oldpos, rot)
 
 
-def mjx_rnePostConstraint(m: mjx.Model, d: mjx.Data) -> jpt.ArrayLike:
-    nbody = m.nbody
-    cfrc_com = jnp.zeros(6)
-    cfrc = jnp.zeros(6)
-    lfrc = jnp.zeros(6)
+# TODO: implement me in future
+# def mjx_rnePostConstraint(m: mjx.Model, d: mjx.Data) -> jpt.ArrayLike:
+#     nbody = m.nbody
+#     cfrc_com = jnp.zeros(6)
+#     cfrc = jnp.zeros(6)
+#     lfrc = jnp.zeros(6)
 
-    all_cacc = jnp.zeros((nbody, 6))
+#     all_cacc = jnp.zeros((nbody, 6))
 
-    # clear cacc, set world acceleration to -gravity
-    if not m.opt.disableflags & DisableBit.GRAVITY:
-        cacc = jnp.concatenate((jnp.zeros((nbody, 3)), -m.opt.gravity), axis=1)
+#     # clear cacc, set world acceleration to -gravity
+#     if not m.opt.disableflags & DisableBit.GRAVITY:
+#         cacc = jnp.concatenate((jnp.zeros((nbody, 3)), -m.opt.gravity), axis=1)
 
-    # FIXME: assumption that xfrc_applied is zero
-    # FIXME: assumption that contacts are zero
-    # FIXME: assumption that connect and weld constraints are zero
+#     # FIXME: assumption that xfrc_applied is zero
+#     # FIXME: assumption that contacts are zero
+#     # FIXME: assumption that connect and weld constraints are zero
 
-    # forward pass over bodies: compute acc
-    cacc = jnp.zeros(6)
-    for j in range(nbody):
-        bda = m.body_dofadr[j]
+#     # forward pass over bodies: compute acc
+#     cacc = jnp.zeros(6)
+#     for j in range(nbody):
+#         bda = m.body_dofadr[j]
 
-        # cacc = cacc_parent + cdofdot * qvel + cdof * qacc
-        cacc = all_cacc[m.body_parentid[j]] + d.cdof_dot[bda] * d.qvel[bda] + d.cdof[bda] * d.qacc[bda]
+#         # cacc = cacc_parent + cdofdot * qvel + cdof * qacc
+#         cacc = all_cacc[m.body_parentid[j]] + d.cdof_dot[bda] * d.qvel[bda] + d.cdof[bda] * d.qacc[bda]
 
 
-def com_acc(m: mjx.Model, d: mjx.Data) -> jpt.ArrayLike:
-    # forward scan over tree: accumulate link center of mass acceleration
-    def cacc_fn(cacc, cdof_dot, qvel):
-        if cacc is None:
-            if m.opt.disableflags & DisableBit.GRAVITY:
-                cacc = jnp.zeros((6,))
-            else:
-                cacc = jnp.concatenate((jnp.zeros((3,)), -m.opt.gravity))
+# def com_acc(m: mjx.Model, d: mjx.Data) -> jpt.ArrayLike:
+#     # forward scan over tree: accumulate link center of mass acceleration
+#     def cacc_fn(cacc, cdof_dot, qvel):
+#         if cacc is None:
+#             if m.opt.disableflags & DisableBit.GRAVITY:
+#                 cacc = jnp.zeros((6,))
+#             else:
+#                 cacc = jnp.concatenate((jnp.zeros((3,)), -m.opt.gravity))
 
-        cacc += jnp.sum(jax.vmap(jnp.multiply)(cdof_dot, qvel), axis=0)
+#         cacc += jnp.sum(jax.vmap(jnp.multiply)(cdof_dot, qvel), axis=0)
 
-        return cacc
+#         return cacc
 
-    return scan.body_tree(m, cacc_fn, "vv", "b", d.cdof_dot, d.qvel)
+#     return scan.body_tree(m, cacc_fn, "vv", "b", d.cdof_dot, d.qvel)
 
 
 def object_acceleration(mjx_model: mjx.Model, mjx_data: mjx.Data, bodyid) -> jpt.ArrayLike:
@@ -65,7 +66,6 @@ def object_acceleration(mjx_model: mjx.Model, mjx_data: mjx.Data, bodyid) -> jpt
 
     # transform spatial
     accel = mjx_data.cacc[bodyid]
-    mjx_data.cvel
     oldpos = mjx_data.subtree_com[mjx_model.body_rootid[bodyid]]
 
     velocity = object_velocity(mjx_model, mjx_data, bodyid)
@@ -143,7 +143,7 @@ def body_energyRegressor(
     return kinetic, potential
 
 
-def energy_regressor(mjx_model: mjx.Model, mjx_data: mjx.Data) -> tuple[jpt.ArrayLike, jpt.ArrayLike, jpt.ArrayLike]:
+def energy_regressor(mjx_model: mjx.Model, mjx_data: mjx.Data) -> jpt.ArrayLike:
     """Get the energy regressor matrices
 
     The energy regressors Y_k and Y_u are matrices such that:
@@ -163,7 +163,7 @@ def energy_regressor(mjx_model: mjx.Model, mjx_data: mjx.Data) -> tuple[jpt.Arra
         mjx_data (mujoco.mjx.MjData): The mujoco data
 
     Returns:
-        tuple[jpt.ArrayLike, jpt.ArrayLike, jpt.ArrayLike]: The regressor matrices
+        jpt.ArrayLike: The regressor matrix
     """
 
     njoints = mjx_model.njnt
@@ -183,11 +183,7 @@ def energy_regressor(mjx_model: mjx.Model, mjx_data: mjx.Data) -> tuple[jpt.Arra
         kinetic_regressor = kinetic_regressor.at[10 * jnt_id : 10 * jnt_id + 10].set(kinetic)
         potential_regressor = potential_regressor.at[10 * jnt_id : 10 * jnt_id + 10].set(potential)
 
-        # energy_regressor.at[10 * jnt_id : 10 * jnt_id + 10].set(kinetic + potential)
-
-    energy_regressor = kinetic_regressor + potential_regressor
-
-    return kinetic_regressor, potential_regressor, energy_regressor
+    return kinetic_regressor + potential_regressor
 
 
 def potential_energy_bias(mjxmodel: mjx.Model):
@@ -257,38 +253,38 @@ def body_regressor(
     # fmt: on
 
 
-def joint_body_regressor(mjxmodel: mjx.Model, mjxdata: mjx.Data, bodyid) -> jpt.ArrayLike:
-    """mj_bodyRegressor returns a regressor for a single rigid body
+# def joint_body_regressor(mjxmodel: mjx.Model, mjxdata: mjx.Data, bodyid) -> jpt.ArrayLike:
+#     """mj_bodyRegressor returns a regressor for a single rigid body
 
-    This function calculates the regressor for a single rigid body in the MuJoCo model.
-    Given the index of body we compute the velocity and acceleration of the body and
-    then calculate the regressor using the Y_body function.
+#     This function calculates the regressor for a single rigid body in the MuJoCo model.
+#     Given the index of body we compute the velocity and acceleration of the body and
+#     then calculate the regressor using the Y_body function.
 
-    Args:
-        mj_model: MuJoCo model
-        mj_data: MuJoCo data
-        body_id: ID of the body
+#     Args:
+#         mj_model: MuJoCo model
+#         mj_data: MuJoCo data
+#         body_id: ID of the body
 
-    Returns:
-        npt.ArrayLike: regressor for the body
-    """
-    velocity = object_velocity(mjxmodel, mjxdata, bodyid)
-    # accel = mjx.
+#     Returns:
+#         npt.ArrayLike: regressor for the body
+#     """
+#     velocity = object_velocity(mjxmodel, mjxdata, bodyid)
+#     # accel = mjx.
 
-    # velocity = np.zeros(6)
-    # accel = np.zeros(6)
-    # _cross = np.zeros(3)
+#     # velocity = np.zeros(6)
+#     # accel = np.zeros(6)
+#     # _cross = np.zeros(3)
 
-    # mujoco.mj_objectVelocity(mj_model, mj_data, 2, body_id, velocity, 1)
-    # mujoco.mj_objectAcceleration(mj_model, mj_data, 2, body_id, accel, 1)
+#     # mujoco.mj_objectVelocity(mj_model, mj_data, 2, body_id, velocity, 1)
+#     # mujoco.mj_objectAcceleration(mj_model, mj_data, 2, body_id, accel, 1)
 
-    # v, w = velocity[3:], velocity[:3]
-    # # dv - classical acceleration, already contains g
-    # dv, dw = accel[3:], accel[:3]
-    # mujoco.mju_cross(_cross, w, v)
+#     # v, w = velocity[3:], velocity[:3]
+#     # # dv - classical acceleration, already contains g
+#     # dv, dw = accel[3:], accel[:3]
+#     # mujoco.mju_cross(_cross, w, v)
 
-    # # for floating base, this is already included in dv
-    # if mj_model.nq == mj_model.nv:
-    #     dv -= _cross
+#     # # for floating base, this is already included in dv
+#     # if mj_model.nq == mj_model.nv:
+#     #     dv -= _cross
 
-    # return body_regressor(v, w, dv, dw)
+#     # return body_regressor(v, w, dv, dw)
