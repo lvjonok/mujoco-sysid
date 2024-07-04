@@ -23,7 +23,7 @@ import numpy as np
 from numpy import typing as npt
 
 
-def body_dynamicsRegressor(
+def body_regressor(
     v_lin: npt.ArrayLike, v_ang: npt.ArrayLike, a_lin: npt.ArrayLike, a_ang: npt.ArrayLike
 ) -> npt.ArrayLike:
     """Y_body returns a regressor for a single rigid body
@@ -73,7 +73,7 @@ def body_dynamicsRegressor(
     # fmt: on
 
 
-def mj_bodyRegressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
+def joint_body_regressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
     """mj_bodyRegressor returns a regressor for a single rigid body
 
     This function calculates the regressor for a single rigid body in the MuJoCo model.
@@ -94,7 +94,6 @@ def mj_bodyRegressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
     _cross = np.zeros(3)
 
     mujoco.mj_objectVelocity(mj_model, mj_data, 2, body_id, velocity, 1)
-    mujoco.mj_rnePostConstraint(mj_model, mj_data)
     mujoco.mj_objectAcceleration(mj_model, mj_data, 2, body_id, accel, 1)
 
     v, w = velocity[3:], velocity[:3]
@@ -102,14 +101,23 @@ def mj_bodyRegressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
     dv, dw = accel[3:], accel[:3]
     mujoco.mju_cross(_cross, w, v)
 
-    # if floating, should be cancelled
-    if mj_model.nq != mj_model.nv:
+    # for floating base, this is already included in dv
+    if mj_model.nq == mj_model.nv:
         dv -= _cross
 
-    return body_dynamicsRegressor(v, w, dv, dw)
+    return body_regressor(v, w, dv, dw)
 
 
-def mj_jointRegressor(mj_model, mj_data, body_offset=0) -> npt.ArrayLike:
+def get_jacobian(mjmodel, mjdata, bodyid):
+    R = mjdata.xmat[bodyid].reshape(3, 3)
+
+    jac_lin, jac_rot = np.zeros((3, 6)), np.zeros((3, 6))
+    mujoco.mj_jacBody(mjmodel, mjdata, jac_lin, jac_rot, bodyid)
+
+    return np.vstack([R.T @ jac_lin, R.T @ jac_rot])
+
+
+def joint_torque_regressor(mj_model, mj_data) -> npt.ArrayLike:
     """mj_jointRegressor returns a regressor for the whole model
 
     This function calculates the regressor for the whole model in the MuJoCo model.
@@ -140,7 +148,6 @@ def mj_jointRegressor(mj_model, mj_data, body_offset=0) -> npt.ArrayLike:
     Args:
         mj_model: MuJoCo model
         mj_data: MuJoCo data
-        body_offset (int, optional): Starting index of the body, useful when some dummy bodies are introduced.
 
     Returns:
         npt.ArrayLike: regressor for the whole model
@@ -149,21 +156,12 @@ def mj_jointRegressor(mj_model, mj_data, body_offset=0) -> npt.ArrayLike:
     njoints = mj_model.njnt
     body_regressors = np.zeros((6 * njoints, njoints * 10))
     col_jac = np.zeros((6 * njoints, mj_model.nv))
-    jac_lin = np.zeros((3, mj_model.nv))
-    jac_rot = np.zeros((3, mj_model.nv))
 
-    for i in range(njoints):
+    for i, body_id in enumerate(mj_model.jnt_bodyid):
         # calculate cody regressors
-        body_regressors[6 * i : 6 * (i + 1), 10 * i : 10 * (i + 1)] = mj_bodyRegressor(
-            mj_model, mj_data, i + body_offset
-        )
+        body_regressors[6 * i : 6 * (i + 1), 10 * i : 10 * (i + 1)] = joint_body_regressor(mj_model, mj_data, body_id)
 
-        mujoco.mj_jacBody(mj_model, mj_data, jac_lin, jac_rot, i + body_offset)
-
-        # Calculate jacobians
-        rotation = mj_data.xmat[i + body_offset].reshape(3, 3).copy()
-        col_jac[6 * i : 6 * i + 3, :] = rotation.T @ jac_lin.copy()
-        col_jac[6 * i + 3 : 6 * i + 6, :] = rotation.T @ jac_rot.copy()
+        col_jac[6 * i : 6 * i + 6, :] = get_jacobian(mj_model, mj_data, body_id)
 
     return col_jac.T @ body_regressors
 
@@ -233,16 +231,7 @@ def body_energyRegressor(
     return kinetic, potential
 
 
-def get_jacobian(mjmodel, mjdata, bodyid):
-    R = mjdata.xmat[bodyid].reshape(3, 3)
-
-    jacp, jacr = np.zeros((3, 6)), np.zeros((3, 6))
-    mujoco.mj_jacBody(mjmodel, mjdata, jacp, jacr, bodyid)
-
-    return np.vstack([R.T @ jacr, R.T @ jacp])
-
-
-def mj_energyRegressor(mj_model, mj_data) -> tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]:
+def energy_regressor(mj_model, mj_data) -> npt.ArrayLike:
     """
     mj_energyRegressor returns kinetic, potential, and total energy regressors for the whole model.
 
@@ -263,13 +252,11 @@ def mj_energyRegressor(mj_model, mj_data) -> tuple[npt.ArrayLike, npt.ArrayLike,
         body_offset (int, optional): Starting index of the body, useful when some dummy bodies are introduced. Defaults to 0.
 
     Returns:
-        tuple[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike]: kinetic, potential, and total energy regressors for the whole model
+        npt.ArrayLike: total energy regressor for the whole model
     """  # noqa
 
     njoints = mj_model.njnt
     energy_regressor = np.zeros(njoints * 10)
-    kinetic_regressor = np.zeros(njoints * 10)
-    potential_regressor = np.zeros(njoints * 10)
     velocity = np.zeros(6)
 
     for i, bodyid in enumerate(mj_model.jnt_bodyid):
@@ -281,11 +268,9 @@ def mj_energyRegressor(mj_model, mj_data) -> tuple[npt.ArrayLike, npt.ArrayLike,
         position = mj_data.xpos[bodyid]
 
         kinetic, potential = body_energyRegressor(v, w, position, rotation)
-        kinetic_regressor[10 * i : 10 * (i + 1)] = kinetic
-        potential_regressor[10 * i : 10 * (i + 1)] = potential
         energy_regressor[10 * i : 10 * (i + 1)] = kinetic + potential
 
-    return kinetic_regressor, potential_regressor, energy_regressor
+    return energy_regressor
 
 
 def potential_energy_bias(mjmodel):
