@@ -16,6 +16,12 @@ To install the module, run the following command:
 pip install mujoco-sysid
 ```
 
+In order to use with MJX use `[mjx]` or `[mjx_cpu]` for CPU-only version:
+
+```bash
+pip install mujoco-sysid[mjx]
+```
+
 # Documentation
 
 To be generated.
