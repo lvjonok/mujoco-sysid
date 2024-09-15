@@ -111,7 +111,7 @@ def joint_body_regressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
 def get_jacobian(mjmodel, mjdata, bodyid):
     R = mjdata.xmat[bodyid].reshape(3, 3)
 
-    jac_lin, jac_rot = np.zeros((3, 6)), np.zeros((3, 6))
+    jac_lin, jac_rot = np.zeros((3, mjmodel.nv)), np.zeros((3, mjmodel.nv))
     mujoco.mj_jacBody(mjmodel, mjdata, jac_lin, jac_rot, bodyid)
 
     return np.vstack([R.T @ jac_lin, R.T @ jac_rot])
