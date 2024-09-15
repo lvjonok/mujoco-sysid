@@ -2,6 +2,7 @@ import mujoco
 import numpy as np
 
 from mujoco_sysid import regressors
+from mujoco_sysid import parameters
 from mujoco_sysid.utils import muj2pin
 
 np.random.seed(0)
@@ -104,6 +105,8 @@ def test_joint_torque_regressor():
 
     SAMPLES = 10000
 
+    theta = np.concatenate([parameters.get_dynamic_parameters(mjmodel, i) for i in mjmodel.jnt_bodyid])
+
     for _ in range(SAMPLES):
         q, v, dv = np.random.rand(pinmodel.nq), np.random.rand(pinmodel.nv), np.random.rand(pinmodel.nv)
         pin.rnea(pinmodel, pindata, q, v, dv)
@@ -117,6 +120,9 @@ def test_joint_torque_regressor():
         pinY = pin.computeJointTorqueRegressor(pinmodel, pindata, q, v, dv)
         mjY = regressors.joint_torque_regressor(mjmodel, mjdata)
 
+        tau = pin.rnea(pinmodel, pindata, q, v, dv)
+
+        assert np.allclose(mjY @ theta, tau, atol=1e-6), f"Norm diff: {np.linalg.norm(mjY @ theta - tau)}"
         assert np.allclose(mjY, pinY, atol=1e-6), f"Norm diff: {np.linalg.norm(mjY - pinY)}"
 
 
