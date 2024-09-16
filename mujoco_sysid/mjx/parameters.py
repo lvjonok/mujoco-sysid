@@ -72,9 +72,10 @@ def set_dynamic_parameters(mjx_model: mjx.Model, bodyid, theta: jpt.ArrayLike) -
     # eigen decomposition
     diag_inertia, R = jnp.linalg.eigh(inertia_full)
 
-    # check if any of the eigenvalues are negative
-    if jnp.any(diag_inertia < 0):
-        raise ValueError("Inertia matrix is not positive definite")
+    # TODO: maybe add jax.lax conditional if the inertia matrix is not positive definite
+    # # check if any of the eigenvalues are negative
+    # if jnp.any(diag_inertia < 0):
+    #     raise ValueError("Inertia matrix is not positive definite")
 
     # convert the rotation matrix to quaternion
     quat = Rotation.from_matrix(R).as_quat()
