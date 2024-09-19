@@ -1,6 +1,7 @@
 import numpy as np
 import mujoco
 
+
 class ActuatorMotor:
     def __init__(self) -> None:
         self.dyn = np.array([1, 0, 0])
@@ -26,10 +27,10 @@ def update_actuator(model, actuator_id, actuator):
 
 
 def load_model_with_scene(MJCF_PATH):
-    spec= mujoco.MjSpec()
+    spec = mujoco.MjSpec()
     spec.from_file(MJCF_PATH)
 
-    floor_height = 0 
+    floor_height = 0
     wb = spec.worldbody
 
     ground = wb.add_geom()
