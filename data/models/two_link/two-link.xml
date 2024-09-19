@@ -1,0 +1,23 @@
+<mujoco model="two_link_manipulator">
+  <compiler angle="radian" autolimits="true"/>
+  <statistic meansize="0.24644" extent="1.44792" center="0.204344 0 0.61623"/>
+  <worldbody>
+    <geom size="0.1 0.1 0.5" pos="0 0 0.5" type="box"/>
+    <body name="link1" pos="0 0.125 0.95" quat="0.707107 0 0.707107 0">
+      <inertial pos="0 0 0.3" mass="1" diaginertia="1 1 1"/>
+      <joint name="joint1" pos="0 0 0" axis="0 1 0" range="-3.13985 3.14159" damping="1" frictionloss="1"/>
+      <geom size="0.025 0.025 0.3" pos="0 0 0.3" type="box"/>
+      <body name="link2" pos="0 0.05 0.575">
+        <inertial pos="0 0 0.1625" mass="1" diaginertia="1 1 1"/>
+        <joint name="joint2" pos="0 0 0" axis="0 1 0" range="-3.13985 3.14159" damping="1" frictionloss="1"/>
+        <geom size="0.025 0.025 0.1875" pos="0 0 0.1625" type="box"/>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <general name="upper" joint="joint1" />
+    <general name="lower" joint="joint2" />
+  </actuator>
+
+</mujoco>
