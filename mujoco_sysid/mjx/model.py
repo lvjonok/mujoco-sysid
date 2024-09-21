@@ -7,10 +7,10 @@ from .parameters import set_dynamic_parameters
 
 
 def step(
+    parameters: jpt.ArrayLike,
     model: mjx.Model,
     x: jpt.ArrayLike,
     ctrl: jpt.ArrayLike,
-    parameters: jpt.ArrayLike,
 ) -> tuple[jpt.ArrayLike, jpt.ArrayLike]:
     """Smart step function that updates the parameters in the model
 
@@ -23,12 +23,7 @@ def step(
     Returns:
         tuple[jpt.ArrayLike, jpt.ArrayLike]: updated configuration and velocity
     """
-    # update the parameters in model
-    # parameters should be split for each body
-    per_body_parameters = jnp.split(parameters, len(model.body_mass) - 1)
-
-    for i in range(len(model.body_mass) - 1):
-        model = set_dynamic_parameters(model, i + 1, per_body_parameters[i])
+    model = set_dynamic_parameters(model, 1, parameters)
 
     data = mjx.make_data(model).replace(qpos=x[: model.nq], qvel=x[model.nq :], ctrl=ctrl)
     data = mjx.step(model, data)
@@ -37,10 +32,10 @@ def step(
 
 
 def rollout(
+    parameters: jpt.ArrayLike,
     model: mjx.Model,
     x0: jpt.ArrayLike,
     us: jpt.ArrayLike,
-    parameters: jpt.ArrayLike,
 ) -> jpt.ArrayLike:
     """Rollout the model with the given parameters using jax.lax.scan
 
@@ -54,9 +49,18 @@ def rollout(
         jpt.ArrayLike: states of the system shape (N, nx)
     """
 
+    # update the parameters in model
+    # parameters should be split for each body
+
+    # per_body_parameters = jnp.split(parameters, len(model.body_mass) - 1)
+
+    # for i in range(len(model.body_mass) - 1):
+    #     model = set_dynamic_parameters(model, i + 1, per_body_parameters[i])
+    model = set_dynamic_parameters(model, 1, parameters)
+
     # Define a single step function to be used with lax.scan
     def step_fn(x, u):
-        new_x = step(model, x, u, parameters)
+        new_x = step(parameters, model, x, u)
         # Carry the next state and save the current state
         return new_x, new_x
 
@@ -64,6 +68,42 @@ def rollout(
     (_, xs) = jax.lax.scan(step_fn, x0, us)
 
     return xs
+
+
+def rollout2(
+    parameters: jpt.ArrayLike,
+    model: mjx.Model,
+    x0: jpt.ArrayLike,
+    us: jpt.ArrayLike,
+) -> jpt.ArrayLike:
+    """Rollout the model with the given parameters using jax.lax.scan
+
+    Args:
+        model (mjx.Model): MJX model
+        x0 (jpt.ArrayLike): initial state (nx,)
+        us (jpt.ArrayLike): control inputs shape (N, nu)
+        parameters (jpt.ArrayLike): 10 * nbodies parameters
+
+    Returns:
+        jpt.ArrayLike: states of the system shape (N, nx)
+    """
+
+    # update the parameters in model
+    # parameters should be split for each body
+
+    # per_body_parameters = jnp.split(parameters, len(model.body_mass) - 1)
+
+    # for i in range(len(model.body_mass) - 1):
+    #     model = set_dynamic_parameters(model, i + 1, per_body_parameters[i])
+    model = set_dynamic_parameters(model, 1, parameters)
+
+    x = x0
+    xs = []
+    for u in us:
+        x = step(parameters, model, x, u)
+        xs.append(x)
+
+    return jnp.stack(xs)
 
 
 # class Problem:
