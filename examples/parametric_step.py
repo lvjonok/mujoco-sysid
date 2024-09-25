@@ -7,8 +7,10 @@ import numpy as np
 from time import perf_counter
 from mujoco_sysid.mjx.convert import logchol2theta, theta2logchol
 from mujoco_sysid.mjx.parameters import get_dynamic_parameters, set_dynamic_parameters
+
 # from robot_descriptions.h1_mj_description import MJCF_PATH
 from robot_descriptions.iiwa14_mj_description import MJCF_PATH
+
 # Load the model and data
 mj_model = mujoco.MjModel.from_xml_path(MJCF_PATH)
 
@@ -25,6 +27,7 @@ BATCH_DIM = 1000
 true_parameters = get_dynamic_parameters(mj_model, 1)
 true_logchol_parameters = theta2logchol(true_parameters)
 
+
 @jax.jit
 def parametric_step(state, control, logchol_parameters):
     # update the parameters
@@ -32,10 +35,11 @@ def parametric_step(state, control, logchol_parameters):
     new_model = set_dynamic_parameters(mjx_model, 1, parameters)
 
     mjx_data = mjx.make_data(new_model)
-    mjx_data = mjx_data.replace(qpos=state[:mjx_model.nq], qvel=state[mjx_model.nq:], ctrl=control)
+    mjx_data = mjx_data.replace(qpos=state[: mjx_model.nq], qvel=state[mjx_model.nq :], ctrl=control)
     mjx_data = mjx.step(new_model, mjx_data)
     state = jnp.hstack((mjx_data.qpos, mjx_data.qvel))
     return state
+
 
 # Batch version of the parametric_step function
 batched_step = jit(vmap(parametric_step, in_axes=(0, 0, 0)))
@@ -76,7 +80,7 @@ for i in range(num_iterations):
     controls = np.random.randn(BATCH_DIM, mj_model.nu)
     logchol_parameters = np.array([true_logchol_parameters for _ in range(BATCH_DIM)])
     logchol_parameters += np.random.randn(*logchol_parameters.shape) * parameter_deviation * np.abs(logchol_parameters)
-    
+
     t_start = perf_counter()
     batched_step(states, controls, logchol_parameters)
     t_end = perf_counter()
@@ -85,4 +89,4 @@ for i in range(num_iterations):
 
 # Calculate average runtime per cycle
 average_runtime_per_cycle = total_runtime / num_iterations
-print(f'Average runtime per cycle: {average_runtime_per_cycle * 1000:.3f} ms')
+print(f"Average runtime per cycle: {average_runtime_per_cycle * 1000:.3f} ms")

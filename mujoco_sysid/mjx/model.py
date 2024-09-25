@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import jax.typing as jpt
 import mujoco.mjx as mjx
-
+from typing import Callable
 from .parameters import set_dynamic_parameters
 
 
@@ -104,6 +104,79 @@ def rollout2(
         xs.append(x)
 
     return jnp.stack(xs)
+
+
+def parameters_map(parameters: jnp.ndarray, model: mjx.Model) -> mjx.Model:
+    """
+    Map new parameters to the model.
+
+    Args:
+        parameters (jnp.ndarray): Array of parameters to be mapped.
+        model (mjx.Model): The original MJX model.
+
+    Returns:
+        mjx.Model: Updated model with new parameters.
+    """
+    # Assuming parameters are for all bodies except the world body
+    n_bodies = len(model.body_mass) - 1
+
+    for i in range(n_bodies):
+        model = set_dynamic_parameters(parameters, i + 1, model)
+
+    return model
+
+
+def parametric_step(
+    parameters: jnp.ndarray, parameters_map: Callable, model: mjx.Model, state: jnp.ndarray, control: jnp.ndarray
+) -> jnp.ndarray:
+    """
+    Perform a step with new parameter mapping.
+
+    Args:
+        parameters (jnp.ndarray): Parameters for the model.
+        parameters_map (Callable): Function to map parameters to the model.
+        model (mjx.Model): The original MJX model.
+        state (jnp.ndarray): Current state.
+        control (jnp.ndarray): Control input.
+
+    Returns:
+        jnp.ndarray: Updated state after the step.
+    """
+    new_model = parameters_map(parameters, model)
+
+    data = mjx.make_data(new_model).replace(qpos=state[: new_model.nq], qvel=state[new_model.nq :], ctrl=control)
+    data = mjx.step(new_model, data)
+
+    return jnp.concatenate([data.qpos, data.qvel])
+
+
+def rollout_trajectory(
+    parameters: jnp.ndarray,
+    parameters_map: Callable,
+    model: mjx.Model,
+    initial_state: jnp.ndarray,
+    control_inputs: jnp.ndarray,
+) -> jnp.ndarray:
+    """
+    Rollout a trajectory given parameters, initial state, and control inputs.
+
+    Args:
+        parameters (jnp.ndarray): Parameters for the model.
+        parameters_map (Callable): Function to map parameters to the model.
+        model (mjx.Model): The original MJX model.
+        initial_state (jnp.ndarray): Initial state of the system.
+        control_inputs (jnp.ndarray): Control inputs for each step.
+
+    Returns:
+        jnp.ndarray: States of the system for each step.
+    """
+
+    def step_fn(state, control):
+        new_state = parametric_step(parameters, parameters_map, model, state, control)
+        return new_state, new_state
+
+    (_, states) = jax.lax.scan(step_fn, initial_state, control_inputs)
+    return states
 
 
 # class Problem:

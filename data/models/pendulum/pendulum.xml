@@ -1,21 +1,21 @@
-<mujoco model="two_link_manipulator">
-  <compiler angle="radian" autolimits="true"/>
-
-  <option timestep="0.001" integrator="implicitfast">
-    <flag energy="enable" frictionloss="disable" clampctrl="disable" />
-  </option>
-  
-  <actuator>
-    <general name="upper" joint="joint1" />
-  </actuator>
-
-  <statistic meansize="0.302076" extent="1.03923" center="0 0 0.5"/>
-  <worldbody>
-    <geom size="0.1 0.1 0.5" pos="0 0 0.5" type="box"/>
-    <body name="link1" pos="0 0.125 0.95" quat="0 0 1 0">
-      <inertial pos="0 0 0.3" mass="1" diaginertia="1 1 1"/>
-      <joint name="joint1" pos="0 0 0" axis="0 1 0" range="-3.13985 3.14159"/>
-      <geom size="0.025 0.025 0.3" pos="0 0 0.3" type="box"/>
-    </body>
-  </worldbody>
+<mujoco model="pendulum">
+    <option gravity="0 0 -9.81" integrator="RK4"/>
+    
+    <default>
+        <joint damping="0.001" frictionloss="0.0045"/>
+    </default>
+    
+    <worldbody>
+        <geom name="floor" type="plane" size="1 1 0.1" rgba=".9 .9 .9 1"/>
+        
+        <body name="pendulum_body" pos="0 0 0.5">
+            <joint name="hinge" type="hinge" axis="0 1 0" pos="0 0 0"/>
+            <geom name="rod" type="capsule" fromto="0 0 0 0 0 -0.1" size="0.01" rgba="0.5 0.5 0.5 1"/>
+            <geom name="mass" type="sphere" pos="0 0 -0.1" size="0.01" mass="0.15" rgba="1 0 0 1"/>
+        </body>
+    </worldbody>
+    
+    <actuator>
+        <motor name="torque" joint="hinge" gear="1" ctrllimited="true" ctrlrange="-1 1"/>
+    </actuator>
 </mujoco>
