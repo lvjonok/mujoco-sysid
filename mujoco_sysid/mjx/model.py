@@ -126,8 +126,13 @@ def parameters_map(parameters: jnp.ndarray, model: mjx.Model) -> mjx.Model:
     return model
 
 
+# @jax.jit(static_argnames=['parameters_map'])
 def parametric_step(
-    parameters: jnp.ndarray, parameters_map: Callable, model: mjx.Model, state: jnp.ndarray, control: jnp.ndarray
+    parameters: jnp.ndarray,
+    model: mjx.Model,
+    state: jnp.ndarray,
+    control: jnp.ndarray,
+    parameters_map: Callable,
 ) -> jnp.ndarray:
     """
     Perform a step with new parameter mapping.
@@ -150,12 +155,13 @@ def parametric_step(
     return jnp.concatenate([data.qpos, data.qvel])
 
 
+# @jax.jit(static_argnames=['parameters_map'])
 def rollout_trajectory(
     parameters: jnp.ndarray,
-    parameters_map: Callable,
     model: mjx.Model,
     initial_state: jnp.ndarray,
     control_inputs: jnp.ndarray,
+    parameters_map: Callable,
 ) -> jnp.ndarray:
     """
     Rollout a trajectory given parameters, initial state, and control inputs.
