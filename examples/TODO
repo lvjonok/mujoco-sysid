@@ -1,0 +1,9 @@
+Identification
+☐ Pendulum dynamics estimation
+☐ Panda load parameter adaptation
+☐ GO2 walking + load + friction + damping
+
+Batch simulation and sensitivity
+☐ Which parameters are important, jacobian wrt parameters 
+☐ Smulate Quadrotor, add parameter distrubance for batch and check sensetivity
+

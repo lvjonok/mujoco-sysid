@@ -7,7 +7,18 @@ from mujoco.mjx._src.math import transform_motion
 from mujoco.mjx._src.types import DisableBit
 
 
-def object_velocity(mjx_model: mjx.Model, mjx_data: mjx.Data, bodyid) -> jpt.ArrayLike:
+def object_velocity(mjx_model: mjx.Model, mjx_data: mjx.Data, bodyid: int) -> jpt.ArrayLike:
+    """
+    Calculate the velocity of a specified body in the MuJoCo model.
+
+    Args:
+        mjx_model (mjx.Model): The MuJoCo model.
+        mjx_data (mjx.Data): The MuJoCo data.
+        bodyid (int): The ID of the body.
+
+    Returns:
+        jpt.ArrayLike: The velocity of the body.
+    """
     pos = mjx_data.xpos[bodyid]
     rot = mjx_data.xmat[bodyid]  # TODO: maybe reshape is required here
 
@@ -18,49 +29,18 @@ def object_velocity(mjx_model: mjx.Model, mjx_data: mjx.Data, bodyid) -> jpt.Arr
     return transform_motion(vel, pos - oldpos, rot)
 
 
-# TODO: implement me in future
-# def mjx_rnePostConstraint(m: mjx.Model, d: mjx.Data) -> jpt.ArrayLike:
-#     nbody = m.nbody
-#     cfrc_com = jnp.zeros(6)
-#     cfrc = jnp.zeros(6)
-#     lfrc = jnp.zeros(6)
+def object_acceleration(mjx_model: mjx.Model, mjx_data: mjx.Data, bodyid: int) -> jpt.ArrayLike:
+    """
+    Calculate the acceleration of a specified body in the MuJoCo model.
 
-#     all_cacc = jnp.zeros((nbody, 6))
+    Args:
+        mjx_model (mjx.Model): The MuJoCo model.
+        mjx_data (mjx.Data): The MuJoCo data.
+        bodyid (int): The ID of the body.
 
-#     # clear cacc, set world acceleration to -gravity
-#     if not m.opt.disableflags & DisableBit.GRAVITY:
-#         cacc = jnp.concatenate((jnp.zeros((nbody, 3)), -m.opt.gravity), axis=1)
-
-#     # FIXME: assumption that xfrc_applied is zero
-#     # FIXME: assumption that contacts are zero
-#     # FIXME: assumption that connect and weld constraints are zero
-
-#     # forward pass over bodies: compute acc
-#     cacc = jnp.zeros(6)
-#     for j in range(nbody):
-#         bda = m.body_dofadr[j]
-
-#         # cacc = cacc_parent + cdofdot * qvel + cdof * qacc
-#         cacc = all_cacc[m.body_parentid[j]] + d.cdof_dot[bda] * d.qvel[bda] + d.cdof[bda] * d.qacc[bda]
-
-
-# def com_acc(m: mjx.Model, d: mjx.Data) -> jpt.ArrayLike:
-#     # forward scan over tree: accumulate link center of mass acceleration
-#     def cacc_fn(cacc, cdof_dot, qvel):
-#         if cacc is None:
-#             if m.opt.disableflags & DisableBit.GRAVITY:
-#                 cacc = jnp.zeros((6,))
-#             else:
-#                 cacc = jnp.concatenate((jnp.zeros((3,)), -m.opt.gravity))
-
-#         cacc += jnp.sum(jax.vmap(jnp.multiply)(cdof_dot, qvel), axis=0)
-
-#         return cacc
-
-#     return scan.body_tree(m, cacc_fn, "vv", "b", d.cdof_dot, d.qvel)
-
-
-def object_acceleration(mjx_model: mjx.Model, mjx_data: mjx.Data, bodyid) -> jpt.ArrayLike:
+    Returns:
+        jpt.ArrayLike: The acceleration of the body.
+    """
     pos = mjx_data.xpos[bodyid]
     rot = mjx_data.xmat[bodyid]  # TODO: maybe reshape is required here
 
@@ -288,3 +268,45 @@ def body_regressor(
 #     #     dv -= _cross
 
 #     # return body_regressor(v, w, dv, dw)
+
+
+# TODO: implement me in future
+# def mjx_rnePostConstraint(m: mjx.Model, d: mjx.Data) -> jpt.ArrayLike:
+#     nbody = m.nbody
+#     cfrc_com = jnp.zeros(6)
+#     cfrc = jnp.zeros(6)
+#     lfrc = jnp.zeros(6)
+
+#     all_cacc = jnp.zeros((nbody, 6))
+
+#     # clear cacc, set world acceleration to -gravity
+#     if not m.opt.disableflags & DisableBit.GRAVITY:
+#         cacc = jnp.concatenate((jnp.zeros((nbody, 3)), -m.opt.gravity), axis=1)
+
+#     # FIXME: assumption that xfrc_applied is zero
+#     # FIXME: assumption that contacts are zero
+#     # FIXME: assumption that connect and weld constraints are zero
+
+#     # forward pass over bodies: compute acc
+#     cacc = jnp.zeros(6)
+#     for j in range(nbody):
+#         bda = m.body_dofadr[j]
+
+#         # cacc = cacc_parent + cdofdot * qvel + cdof * qacc
+#         cacc = all_cacc[m.body_parentid[j]] + d.cdof_dot[bda] * d.qvel[bda] + d.cdof[bda] * d.qacc[bda]
+
+
+# def com_acc(m: mjx.Model, d: mjx.Data) -> jpt.ArrayLike:
+#     # forward scan over tree: accumulate link center of mass acceleration
+#     def cacc_fn(cacc, cdof_dot, qvel):
+#         if cacc is None:
+#             if m.opt.disableflags & DisableBit.GRAVITY:
+#                 cacc = jnp.zeros((6,))
+#             else:
+#                 cacc = jnp.concatenate((jnp.zeros((3,)), -m.opt.gravity))
+
+#         cacc += jnp.sum(jax.vmap(jnp.multiply)(cdof_dot, qvel), axis=0)
+
+#         return cacc
+
+#     return scan.body_tree(m, cacc_fn, "vv", "b", d.cdof_dot, d.qvel)

@@ -10,6 +10,12 @@ from mujoco import mjx
 from mujoco_sysid.mjx.convert import logchol2theta, theta2logchol
 from mujoco_sysid.mjx.model import create_rollout
 from mujoco_sysid.mjx.parameters import get_dynamic_parameters, set_dynamic_parameters
+import os
+
+# SHOULD WE MOVE THIS IN TO MODULE INIT?
+xla_flags = os.environ.get("XLA_FLAGS", "")
+xla_flags += " --xla_gpu_triton_gemm_any=True"
+os.environ["XLA_FLAGS"] = xla_flags
 
 
 @jax.jit
@@ -56,7 +62,7 @@ control = data_array[:, 3]
 
 model.opt.timestep = sampling
 
-HORIZON = 100
+HORIZON = 50
 N_INTERVALS = len(timespan) // HORIZON - 1
 timespan = timespan[: N_INTERVALS * HORIZON]
 angle = angle[: N_INTERVALS * HORIZON]
@@ -98,9 +104,7 @@ print(f"Batch simulation time: {t2 - t1} seconds")
 interval_initial_states = true_trajectory[::HORIZON]
 interval_controls = control_inputs.reshape(N_INTERVALS, HORIZON)
 t1 = perf_counter()
-batched_states_trajectories = batched_rollout(
-    default_parameters * 0.7, mjx_model, interval_initial_states, interval_controls
-)
+batched_states_trajectories = batched_rollout(default_parameters, mjx_model, interval_initial_states, interval_controls)
 t2 = perf_counter()
 print(f"Batch simulation time: {t2 - t1} seconds")
 
