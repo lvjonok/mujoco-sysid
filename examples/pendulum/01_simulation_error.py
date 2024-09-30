@@ -34,7 +34,7 @@ def parameters_map(parameters: jnp.ndarray, model: mjx.Model) -> mjx.Model:
 
 
 rollout_trajectory = jax.jit(create_rollout(parameters_map))
-          
+
 
 # Initialize random key
 key = jax.random.PRNGKey(0)
@@ -54,8 +54,7 @@ mjx_model = mjx.put_model(model)
 
 # Load test data
 TEST_DATA_PATH = "../../data/trajectories/pendulum/free_fall_2.csv"
-data_array = np.genfromtxt(
-    TEST_DATA_PATH, delimiter=",", skip_header=100, skip_footer=2500)
+data_array = np.genfromtxt(TEST_DATA_PATH, delimiter=",", skip_header=100, skip_footer=2500)
 timespan = data_array[:, 0] - data_array[0, 0]
 sampling = np.mean(np.diff(timespan))
 angle = data_array[:, 1]
@@ -64,7 +63,7 @@ control = data_array[:, 3]
 
 model.opt.timestep = sampling
 
-HORIZON = 50
+HORIZON = 100
 N_INTERVALS = len(timespan) // HORIZON - 1
 timespan = timespan[: N_INTERVALS * HORIZON]
 angle = angle[: N_INTERVALS * HORIZON]
@@ -81,69 +80,59 @@ interval_controls = control_inputs.reshape(N_INTERVALS, HORIZON)
 
 # Get default parameters from the model
 default_parameters = jnp.concatenate(
-    [theta2logchol(get_dynamic_parameters(mjx_model, 1)),
-     mjx_model.dof_damping, mjx_model.dof_frictionloss]
+    [theta2logchol(get_dynamic_parameters(mjx_model, 1)), mjx_model.dof_damping, mjx_model.dof_frictionloss]
 )
 
 # //////////////////////////////////////
 # SIMULATION BATCHES: THIS WILL BE HANDY IN OPTIMIZATION
 
 # Vectorize over both initial states and control inputs
-batched_rollout = jax.jit(
-    jax.vmap(rollout_trajectory, in_axes=(None, None, 0, 0)))
+batched_rollout = jax.jit(jax.vmap(rollout_trajectory, in_axes=(None, None, 0, 0)))
 
 # Create a batch of initial states
 key, subkey = jax.random.split(key)
-batch_initial_states = jax.random.uniform(
-    subkey, (N_INTERVALS, 2), minval=-0.1, maxval=0.1) + initial_state
+batch_initial_states = jax.random.uniform(subkey, (N_INTERVALS, 2), minval=-0.1, maxval=0.1) + initial_state
 # Create a batch of control input sequences
 key, subkey = jax.random.split(key)
-batch_control_inputs = jax.random.normal(
-    subkey, (N_INTERVALS, HORIZON)) * 0.1  # + control_inputs
+batch_control_inputs = jax.random.normal(subkey, (N_INTERVALS, HORIZON)) * 0.1  # + control_inputs
 # Run warm up for batched rollout
 t1 = perf_counter()
-batched_trajectories = batched_rollout(
-    default_parameters, mjx_model, batch_initial_states, batch_control_inputs)
+batched_trajectories = batched_rollout(default_parameters, mjx_model, batch_initial_states, batch_control_inputs)
 t2 = perf_counter()
 print(f"Batch simulation time: {t2 - t1} seconds")
 
 # Run batched rollout on shor horizon data from pendulum
 interval_initial_states = true_trajectory[::HORIZON]
-interval_terminal_states = true_trajectory[HORIZON+1:][::HORIZON]
+interval_terminal_states = true_trajectory[HORIZON + 1 :][::HORIZON]
 interval_controls = control_inputs.reshape(N_INTERVALS, HORIZON)
 t1 = perf_counter()
 batched_states_trajectories = batched_rollout(
-    default_parameters*0.7, mjx_model, interval_initial_states, interval_controls)
+    0.7 * default_parameters, mjx_model, interval_initial_states, interval_controls
+)
 t2 = perf_counter()
 print(f"Batch simulation time: {t2 - t1} seconds")
 
-predicted_terminal_points = np.array(batched_states_trajectories)[:,-1,:]
-batched_states_trajectories = np.array(
-    batched_states_trajectories).reshape(N_INTERVALS * HORIZON, 2)
+predicted_terminal_points = np.array(batched_states_trajectories)[:, -1, :]
+batched_states_trajectories = np.array(batched_states_trajectories).reshape(N_INTERVALS * HORIZON, 2)
 # Plotting simulation results for batсhed state trajectories
 plt.figure(figsize=(10, 5))
 
 plt.subplot(2, 2, 1)
-plt.plot(timespan, angle, label="Actual Angle",
-         color="black", linestyle="dashed", linewidth=2)
-plt.plot(timespan, batched_states_trajectories[:, 0],
-         alpha=0.5, color="blue", label="Simulated Angle")
-plt.plot(timespan, angle, label="Actual Angle",
-         color="black", linestyle="dashed", linewidth=2)
-plt.plot(timespan[HORIZON+1:][::HORIZON], predicted_terminal_points[:-1,0], 'ob')
-plt.plot(timespan[HORIZON+1:][::HORIZON], interval_terminal_states[:, 0], 'or')
+plt.plot(timespan, angle, label="Actual Angle", color="black", linestyle="dashed", linewidth=2)
+plt.plot(timespan, batched_states_trajectories[:, 0], alpha=0.5, color="blue", label="Simulated Angle")
+plt.plot(timespan, angle, label="Actual Angle", color="black", linestyle="dashed", linewidth=2)
+plt.plot(timespan[HORIZON + 1 :][::HORIZON], predicted_terminal_points[:-1, 0], "ob")
+plt.plot(timespan[HORIZON + 1 :][::HORIZON], interval_terminal_states[:, 0], "or")
 plt.ylabel("Angle (rad)")
 plt.grid(color="black", linestyle="--", linewidth=1.0, alpha=0.4)
 plt.legend()
 plt.title("Pendulum Dynamics - Bathed State Trajectories")
 
 plt.subplot(2, 2, 3)
-plt.plot(timespan, velocity, label="Actual Velocity",
-         color="black", linestyle="dashed", linewidth=2)
-plt.plot(timespan[HORIZON+1:][::HORIZON], predicted_terminal_points[:-1,1], 'ob')
-plt.plot(timespan[HORIZON+1:][::HORIZON], interval_terminal_states[:, 1], 'or')
-plt.plot(timespan, batched_states_trajectories[:, 1],
-         alpha=0.5, color="blue", label="Simulated Velocity")
+plt.plot(timespan, velocity, label="Actual Velocity", color="black", linestyle="dashed", linewidth=2)
+plt.plot(timespan[HORIZON + 1 :][::HORIZON], predicted_terminal_points[:-1, 1], "ob")
+plt.plot(timespan[HORIZON + 1 :][::HORIZON], interval_terminal_states[:, 1], "or")
+plt.plot(timespan, batched_states_trajectories[:, 1], alpha=0.5, color="blue", label="Simulated Velocity")
 plt.xlabel("Time (s)")
 plt.ylabel("Velocity (rad/s)")
 plt.grid(color="black", linestyle="--", linewidth=1.0, alpha=0.4)
@@ -151,13 +140,12 @@ plt.legend()
 
 # Add phase portrait
 plt.subplot(1, 2, 2)
-plt.plot(angle, velocity, label="Actual",
-         color="black", linestyle="dashed", linewidth=2)
+plt.plot(angle, velocity, label="Actual", color="black", linestyle="dashed", linewidth=2)
 plt.plot(
     batched_states_trajectories[:, 0], batched_states_trajectories[:, 1], alpha=0.5, color="blue", label="Simulated"
 )
-plt.plot(predicted_terminal_points[:-1,0], predicted_terminal_points[:-1,1], 'ob')
-plt.plot(interval_terminal_states[:, 0], interval_terminal_states[:, 1], 'or')
+plt.plot(predicted_terminal_points[:-1, 0], predicted_terminal_points[:-1, 1], "ob")
+plt.plot(interval_terminal_states[:, 0], interval_terminal_states[:, 1], "or")
 plt.xlabel("Angle (rad)")
 plt.ylabel("Angular Velocity (rad/s)")
 plt.title("Phase Portrait")
@@ -168,4 +156,3 @@ plt.tight_layout()
 plt.show()
 # TODO:
 # Optimization
-

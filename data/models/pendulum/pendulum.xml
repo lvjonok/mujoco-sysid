@@ -2,7 +2,7 @@
     <option gravity="0 0 -9.81" integrator="RK4"/>
     
     <default>
-        <joint damping="0.001" frictionloss="0.0045"/>
+        <joint damping="0.0011953" frictionloss="0.00496781"/>
     </default>
     
     <worldbody>
@@ -11,7 +11,7 @@
         <body name="pendulum_body" pos="0 0 0.5">
             <joint name="hinge" type="hinge" axis="0 1 0" pos="0 0 0"/>
             <geom name="rod" type="capsule" fromto="0 0 0 0 0 -0.1" size="0.01" rgba="0.5 0.5 0.5 1"/>
-            <geom name="mass" type="sphere" pos="0 0 -0.1" size="0.01" mass="0.15" rgba="1 0 0 1"/>
+            <geom name="mass" type="sphere" pos="0 0 -0.1" size="0.01" mass="0.16492051" rgba="1 0 0 1"/>
         </body>
     </worldbody>
     
