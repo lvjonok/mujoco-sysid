@@ -1,5 +1,6 @@
 import numpy as np
 from quaternion import as_rotation_matrix, quaternion
+import mujoco
 
 
 def muj2pin(qpos: np.ndarray, qvel: np.ndarray, qacc: np.ndarray | None = None) -> tuple:
@@ -104,3 +105,25 @@ def mjx2mujoco(mj_model, mjx_model):
         setattr(mj_model, field_name, value)
 
     return mj_model
+
+
+# def update_model(xml_path, mjx_model, save_updated = False):
+#     # spec = mujoco.MjSpec()
+#     spec: mujoco.MjSpec = mujoco.MjSpec()
+#     spec.from_file(xml_path)
+#     model = spec.compile()
+#     model = mjx2mujoco(model, mjx_model)
+#     data = mujoco.MjData(model)
+#     # model.body_mass[:] = np.array(mjx_model.body_mass)*1000
+#     # print()
+#     # model, _ = spec.recompile(model, data)
+#     # print()
+#     # self.spec.settotalmass = 50
+#     print(spec.body)
+#     # spec.recompile()
+#     if save_updated:
+#         xml_string = spec.to_xml()
+#         with open(f"{xml_path[:-4]}" + '_updated.xml' , "w") as file:
+#             file.write(xml_string)
+
+#     return model

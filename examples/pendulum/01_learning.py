@@ -6,13 +6,12 @@ import matplotlib.pyplot as plt
 import mujoco
 import numpy as np
 from mujoco import mjx
-from mujoco_sysid.mjx.convert import logchol2theta, theta2logchol
 from mujoco_sysid.mjx.model import create_rollout
-from mujoco_sysid.mjx.parameters import get_dynamic_parameters, set_dynamic_parameters
-from mujoco_sysid.utils import mjx2mujoco
+from mujoco_sysid.utils import mjx2mujoco, update_model
 import os
 import optax
 from mujoco.mjx._src.types import IntegratorType
+
 
 # SHOULD WE MOVE THIS IN TO MODULE INIT?
 xla_flags = os.environ.get("XLA_FLAGS", "")
@@ -45,7 +44,8 @@ rollout_trajectory = jax.jit(create_rollout(parameters_map))
 key = jax.random.PRNGKey(0)
 
 # Load the model
-MJCF_PATH = "../../data/models/pendulum/pendulum.xml"
+MJCF_PATH = "models/pendulum.xml"
+
 model = mujoco.MjModel.from_xml_path(MJCF_PATH)
 data = mujoco.MjData(model)
 model.opt.integrator = IntegratorType.EULER
@@ -58,7 +58,7 @@ model.opt.ls_iterations = 10
 mjx_model = mjx.put_model(model)
 
 # Load test data
-TEST_DATA_PATH = "../../data/trajectories/pendulum/harmonic_input_1.csv"
+TEST_DATA_PATH = "data/harmonic_input_1.csv"
 data_array = np.genfromtxt(TEST_DATA_PATH, delimiter=",", skip_header=100, skip_footer=2500)
 timespan = data_array[:, 0] - data_array[0, 0]
 sampling = np.mean(np.diff(timespan))
@@ -115,7 +115,7 @@ val_and_grad = jax.jit(jax.value_and_grad(rollout_errors))
 loss_val, loss_grad = val_and_grad(params, true_trajectory, control_inputs)
 print(loss_grad)
 # A simple update loop.
-for iteration in range(400):
+for iteration in range(200):
     loss_val, loss_grad = val_and_grad(params, true_trajectory, control_inputs)
     updates, opt_state = optimizer.update(loss_grad, opt_state)
     params = optax.apply_updates(params, updates)
@@ -124,12 +124,11 @@ for iteration in range(400):
         print("Params at iteration", iteration, ":  ", params)
         print("Gradients at iteration", iteration, ":  ", loss_grad)
 
-print(jnp.exp(params))
-print(jnp.exp(default_parameters))
-
 # get updated MJX model
 updated_mjx_model = parameters_map(params, mjx_model)
 # convert to mujoco model and save to xml
+print(model.body_mass)
 updated_mj_model = mjx2mujoco(model, updated_mjx_model)
-# print(updated_mj_model)
-mujoco.mj_saveLastXML("../../data/models/pendulum/pendulum_estimated.xml", updated_mj_model)
+# Dont know how to properly save the updated model( Mass is not changing, maybe use spec
+print(updated_mj_model.body_mass)
+mujoco.mj_saveLastXML("models/pendulum_estimated.xml", updated_mj_model)

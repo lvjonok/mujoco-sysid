@@ -40,7 +40,7 @@ rollout_trajectory = jax.jit(create_rollout(parameters_map))
 key = jax.random.PRNGKey(0)
 
 # Load the model
-MJCF_PATH = "../../data/models/pendulum/pendulum.xml"
+MJCF_PATH = "models/pendulum.xml"
 model = mujoco.MjModel.from_xml_path(MJCF_PATH)
 data = mujoco.MjData(model)
 model.opt.integrator = IntegratorType.EULER
@@ -53,7 +53,7 @@ model.opt.ls_iterations = 10
 mjx_model = mjx.put_model(model)
 
 # Load test data
-TEST_DATA_PATH = "../../data/trajectories/pendulum/free_fall_2.csv"
+TEST_DATA_PATH = "data/free_fall_2.csv"
 data_array = np.genfromtxt(TEST_DATA_PATH, delimiter=",", skip_header=100, skip_footer=2500)
 timespan = data_array[:, 0] - data_array[0, 0]
 sampling = np.mean(np.diff(timespan))
@@ -106,9 +106,7 @@ interval_initial_states = true_trajectory[::HORIZON]
 interval_terminal_states = true_trajectory[HORIZON + 1 :][::HORIZON]
 interval_controls = control_inputs.reshape(N_INTERVALS, HORIZON)
 t1 = perf_counter()
-batched_states_trajectories = batched_rollout(
-    0.7 * default_parameters, mjx_model, interval_initial_states, interval_controls
-)
+batched_states_trajectories = batched_rollout(default_parameters, mjx_model, interval_initial_states, interval_controls)
 t2 = perf_counter()
 print(f"Batch simulation time: {t2 - t1} seconds")
 
