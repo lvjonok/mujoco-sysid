@@ -9,6 +9,7 @@ from mujoco import mjx
 from mujoco_sysid.mjx.convert import logchol2theta, theta2logchol
 from mujoco_sysid.mjx.model import create_rollout
 from mujoco_sysid.mjx.parameters import get_dynamic_parameters, set_dynamic_parameters
+from mujoco_sysid.utils import mjx2mujoco
 import os
 import optax
 from mujoco.mjx._src.types import IntegratorType
@@ -30,7 +31,7 @@ def parameters_map(parameters: jnp.ndarray, model: mjx.Model) -> mjx.Model:
     friction_loss = jnp.exp(log_friction_loss)
     return model.tree_replace(
         {
-            "body_mass": mjx_model.body_mass.at[1].set(mass),
+            "body_mass": model.body_mass.at[1].set(mass),
             "dof_damping": model.dof_damping.at[0].set(damping),
             "dof_frictionloss": model.dof_frictionloss.at[0].set(friction_loss),
         }
@@ -108,13 +109,13 @@ optimizer = optax.adam(learning_rate=start_learning_rate)
 
 
 # Initialize parameters of the model + optimizer.
-params = jnp.array(0.7 * default_parameters)
+params = jnp.array(default_parameters)
 opt_state = optimizer.init(params)
 val_and_grad = jax.jit(jax.value_and_grad(rollout_errors))
 loss_val, loss_grad = val_and_grad(params, true_trajectory, control_inputs)
 print(loss_grad)
 # A simple update loop.
-for iteration in range(500):
+for iteration in range(400):
     loss_val, loss_grad = val_and_grad(params, true_trajectory, control_inputs)
     updates, opt_state = optimizer.update(loss_grad, opt_state)
     params = optax.apply_updates(params, updates)
@@ -125,3 +126,10 @@ for iteration in range(500):
 
 print(jnp.exp(params))
 print(jnp.exp(default_parameters))
+
+# get updated MJX model
+updated_mjx_model = parameters_map(params, mjx_model)
+# convert to mujoco model and save to xml
+updated_mj_model = mjx2mujoco(model, updated_mjx_model)
+# print(updated_mj_model)
+mujoco.mj_saveLastXML("../../data/models/pendulum/pendulum_estimated.xml", updated_mj_model)

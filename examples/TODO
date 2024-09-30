@@ -1,3 +1,6 @@
+GENERIC
+☐ Move the demo to separate folder
+
 Identification
 ☐ Pendulum dynamics estimation
 ☐ Panda load parameter adaptation
@@ -6,4 +9,5 @@ Identification
 Batch simulation and sensitivity
 ☐ Which parameters are important, jacobian wrt parameters 
 ☐ Smulate Quadrotor, add parameter distrubance for batch and check sensetivity
+
 

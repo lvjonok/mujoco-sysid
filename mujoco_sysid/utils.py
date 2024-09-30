@@ -94,3 +94,13 @@ def pin2muj(pin_pos: np.ndarray, pin_vel: np.ndarray, pin_acc: np.ndarray | None
         return qpos, qvel, qacc
 
     return qpos, qvel
+
+
+def mjx2mujoco(mj_model, mjx_model):
+    field_names = ["body_mass", "body_inertia", "body_iquat", "dof_damping", "dof_frictionloss"]
+
+    for field_name in field_names:
+        value = np.array(getattr(mjx_model, field_name))
+        setattr(mj_model, field_name, value)
+
+    return mj_model
