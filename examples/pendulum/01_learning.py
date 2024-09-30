@@ -7,7 +7,7 @@ import mujoco
 import numpy as np
 from mujoco import mjx
 from mujoco_sysid.mjx.model import create_rollout
-from mujoco_sysid.utils import mjx2mujoco, update_model
+from mujoco_sysid.utils import mjx2mujoco
 import os
 import optax
 from mujoco.mjx._src.types import IntegratorType
