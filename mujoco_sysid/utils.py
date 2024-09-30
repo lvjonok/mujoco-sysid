@@ -2,6 +2,8 @@ import numpy as np
 from quaternion import as_rotation_matrix, quaternion
 import mujoco
 
+import copy
+
 
 def muj2pin(qpos: np.ndarray, qvel: np.ndarray, qacc: np.ndarray | None = None) -> tuple:
     """
@@ -99,12 +101,13 @@ def pin2muj(pin_pos: np.ndarray, pin_vel: np.ndarray, pin_acc: np.ndarray | None
 
 def mjx2mujoco(mj_model, mjx_model):
     field_names = ["body_mass", "body_inertia", "body_iquat", "dof_damping", "dof_frictionloss"]
-
+    # new_model = mj_model
+    model_copy = copy.deepcopy(mj_model)
     for field_name in field_names:
         value = np.array(getattr(mjx_model, field_name))
-        setattr(mj_model, field_name, value)
+        setattr(model_copy, field_name, value)
 
-    return mj_model
+    return model_copy
 
 
 # def update_model(xml_path, mjx_model, save_updated = False):
@@ -113,7 +116,7 @@ def mjx2mujoco(mj_model, mjx_model):
 #     spec.from_file(xml_path)
 #     model = spec.compile()
 #     model = mjx2mujoco(model, mjx_model)
-#     data = mujoco.MjData(model)
+#     # data = mujoco.MjData(model)
 #     # model.body_mass[:] = np.array(mjx_model.body_mass)*1000
 #     # print()
 #     # model, _ = spec.recompile(model, data)
