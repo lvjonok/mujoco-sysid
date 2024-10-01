@@ -53,8 +53,8 @@ model.opt.ls_iterations = 10
 mjx_model = mjx.put_model(model)
 
 # Load test data
-TEST_DATA_PATH = "data/free_fall_2.csv"
-data_array = np.genfromtxt(TEST_DATA_PATH, delimiter=",", skip_header=100, skip_footer=2500)
+TEST_DATA_PATH = "data/harmonic_input_2.csv"
+data_array = np.genfromtxt(TEST_DATA_PATH, delimiter=",", skip_header=10, skip_footer=2500)
 timespan = data_array[:, 0] - data_array[0, 0]
 sampling = np.mean(np.diff(timespan))
 angle = data_array[:, 1]
@@ -63,7 +63,7 @@ control = data_array[:, 3]
 
 model.opt.timestep = sampling
 
-HORIZON = 100
+HORIZON = 50
 N_INTERVALS = len(timespan) // HORIZON - 1
 timespan = timespan[: N_INTERVALS * HORIZON]
 angle = angle[: N_INTERVALS * HORIZON]

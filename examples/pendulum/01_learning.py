@@ -60,7 +60,7 @@ mjx_model = mjx.put_model(model)
 
 # Load test data
 LEARNING_DATA_PATH = "data/free_fall_2.csv"
-data_array = np.genfromtxt(LEARNING_DATA_PATH, delimiter=",", skip_header=100, skip_footer=1000)
+data_array = np.genfromtxt(LEARNING_DATA_PATH, delimiter=",", skip_header=10, skip_footer=2500)
 timespan = data_array[:, 0] - data_array[0, 0]
 sampling = np.mean(np.diff(timespan))
 angle = data_array[:, 1]
@@ -88,21 +88,6 @@ interval_controls = control_inputs.reshape(N_INTERVALS, HORIZON)
 default_parameters = jnp.concatenate(
     [jnp.log(jnp.array([mjx_model.body_mass[1]])), jnp.log(mjx_model.dof_damping), jnp.log(mjx_model.dof_frictionloss)]
 )
-
-
-@jax.jit
-def rollout_errors(parameters, states, controls):
-    # TODO: Use the full trajecttory in shouting not only las point
-    interval_initial_states = states[::HORIZON]
-    interval_terminal_states = states[HORIZON + 1 :][::HORIZON]
-    interval_controls = jnp.reshape(controls, (N_INTERVALS, HORIZON))
-    batched_rollout = jax.vmap(rollout_trajectory, in_axes=(None, None, 0, 0))
-    batched_states_trajectories = batched_rollout(parameters, mjx_model, interval_initial_states, interval_controls)
-    predicted_terminal_points = batched_states_trajectories[:, -1, :]
-    loss = jnp.mean(
-        optax.l2_loss(predicted_terminal_points[:-1], interval_terminal_states)
-    )  # + 0.05*jnp.mean(optax.huber_loss(parameters, jnp.zeros_like(parameters)))
-    return loss
 
 
 @jax.jit
