@@ -99,34 +99,30 @@ def pin2muj(pin_pos: np.ndarray, pin_vel: np.ndarray, pin_acc: np.ndarray | None
     return qpos, qvel
 
 
-def mjx2mujoco(mj_model, mjx_model):
-    field_names = ["body_mass", "body_inertia", "body_iquat", "dof_damping", "dof_frictionloss"]
-    # new_model = mj_model
-    model_copy = copy.deepcopy(mj_model)
-    for field_name in field_names:
-        value = np.array(getattr(mjx_model, field_name))
-        setattr(model_copy, field_name, value)
+def mjx2mujoco(mj_model, mjx_model) -> mujoco.MjModel:
+    """Update the mujoco model with the parameters from the mjx model.
 
-    return model_copy
+    Args:
+        mj_model (mujoco.MjModel): The mujoco model to be updated.
+        mjx_model (mjx.Model): The mjx model containing the updated parameters
 
+    Returns:
+        mujoco.MjModel: The copy of the mujoco model with the updated parameters.
+    """
+    mj_model = copy.deepcopy(mj_model)
 
-# def update_model(xml_path, mjx_model, save_updated = False):
-#     # spec = mujoco.MjSpec()
-#     spec: mujoco.MjSpec = mujoco.MjSpec()
-#     spec.from_file(xml_path)
-#     model = spec.compile()
-#     model = mjx2mujoco(model, mjx_model)
-#     # data = mujoco.MjData(model)
-#     # model.body_mass[:] = np.array(mjx_model.body_mass)*1000
-#     # print()
-#     # model, _ = spec.recompile(model, data)
-#     # print()
-#     # self.spec.settotalmass = 50
-#     print(spec.body)
-#     # spec.recompile()
-#     if save_updated:
-#         xml_string = spec.to_xml()
-#         with open(f"{xml_path[:-4]}" + '_updated.xml' , "w") as file:
-#             file.write(xml_string)
+    # update dof_damping and dof_frictionloss
+    mj_model.dof_damping = mjx_model.dof_damping
+    mj_model.dof_frictionloss = mjx_model.dof_frictionloss
 
-#     return model
+    # update bodies parameters
+    mj_model.body_mass = np.array(mjx_model.body_mass)
+    for i in range(mj_model.nbody):
+        # update mass
+        mj_model.body(i).mass = mjx_model.body_mass[i].item()
+        # update inertia
+        mj_model.body(i).inertia = mjx_model.body_inertia[i]
+        # update quaternion
+        mj_model.body(i).iquat = mjx_model.body_iquat[i]
+
+    return mj_model

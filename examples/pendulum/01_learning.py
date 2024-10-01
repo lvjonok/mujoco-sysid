@@ -234,11 +234,10 @@ mse_optimized_velocity = np.mean((velocity - new_rollout[:, 1]) ** 2)
 print(f"Default model MSE - Angle: {mse_default_angle:.6f}, Velocity: {mse_default_velocity:.6f}")
 print(f"Optimized model MSE - Angle: {mse_optimized_angle:.6f}, Velocity: {mse_optimized_velocity:.6f}")
 
-# Wa may also save the model to mujoco format for further simulation
+# We may also save the model to mujoco format for further simulation
 # get updated MJX model
 updated_mjx_model = parameters_map(estimated_parameters, mjx_model)
 updated_mj_model = mjx2mujoco(model, updated_mjx_model)
 
-# Dont know how to properly save the updated model( Mass is not changing, maybe use spec
-# print(updated_mj_model.body_mass)
-# mujoco.mj_saveLastXML("models/pendulum_estimated.xml", updated_mj_model)
+# Save estimated model
+mujoco.mj_saveLastXML("models/pendulum_estimated.xml", updated_mj_model)
