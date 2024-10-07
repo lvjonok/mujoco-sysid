@@ -18,6 +18,8 @@ examples = [
     "matplotlib",
     "robot_descriptions",
     "mediapy",
+    "optax",
+    "mujoco-logger",
 ]
 mjx = ["mujoco-mjx", "jax[cuda12]"]
 mjx_cpu = ["mujoco-mjx", "jax"]
