@@ -27,6 +27,24 @@ key = jax.random.PRNGKey(0)
 model = mujoco.MjModel.from_xml_path(MJCF_PATH)
 data = mujoco.MjData(model)
 model.opt.integrator = IntegratorType.EULER
+model.dof_frictionloss = jnp.zeros(model.nv)
+# model.dof_frictionloss[6:] = 0.2 # we got the data from the log with this value
+
+# update collisions to be active only for feet
+for i in range(model.ngeom):
+    geomi = model.geom(i)
+
+    is_sphere = geomi.type[0] == mujoco.mjtGeom.mjGEOM_SPHERE
+    is_plane = geomi.type[0] == mujoco.mjtGeom.mjGEOM_PLANE
+
+    if not is_sphere and not is_plane:
+        model.geom_contype[i] = 0
+        model.geom_conaffinity[i] = 0
+
+    # foot spheres are of radius 0.017
+    if is_sphere and not geomi.size[0] != "0.0175":
+        model.geom_contype[i] = 0
+        model.geom_conaffinity[i] = 0
 
 # Setting up constraint solver to ensure differentiability and faster simulations
 model.opt.solver = 2  # 2 corresponds to Newton solver
@@ -39,7 +57,7 @@ default_parameters = jnp.concatenate(
     [
         jnp.log(jnp.array([mjx_model.body_mass[1]])),
         jnp.log(mjx_model.dof_damping[6:]),
-        jnp.log(mjx_model.dof_frictionloss[6:] + 0.2),
+        # jnp.log(mjx_model.dof_frictionloss[6:]),
     ]
 )
 print(f"Default parameters: {default_parameters}")
@@ -47,16 +65,16 @@ print(f"Default parameters: {default_parameters}")
 @jax.jit
 def parameters_map(parameters: ArrayLike, model: mjx.Model) -> mjx.Model:
     """Map new parameters to the model."""
-    log_mass, log_damping, log_friction = parameters[0], parameters[1:13], parameters[13:]
+    log_mass, log_damping = parameters[0], parameters[1:13] #, parameters[13:]
 
     mass = jnp.exp(log_mass)
     damping = jnp.exp(log_damping)
-    friction = jnp.exp(log_friction)
+    # friction = jnp.exp(log_friction)
     return model.tree_replace(
         {
             "body_mass": model.body_mass.at[1].set(mass),
             "dof_damping": model.dof_damping.at[6:].set(damping),
-            "dof_frictionloss": model.dof_frictionloss.at[6:].set(friction),
+            # "dof_frictionloss": model.dof_frictionloss.at[6:].set(friction),
         }
     )
 
@@ -93,7 +111,7 @@ def rollout_errors(parameters, states, controls):
 optimizer = optax.adam(learning_rate=0.5)
 
 # Initialize parameters of the model + optimizer.
-estimated_parameters = jnp.array(default_parameters) + 0.4 * jax.random.normal(key, default_parameters.shape)
+estimated_parameters = jnp.array(default_parameters) + 0.2 * jax.random.normal(key, default_parameters.shape)
 opt_state = optimizer.init(estimated_parameters)
 val_and_grad = jax.jit(jax.value_and_grad(rollout_errors))
 loss_val, loss_grad = val_and_grad(estimated_parameters, states, controls)
