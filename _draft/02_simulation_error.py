@@ -12,6 +12,7 @@ from mujoco_sysid.mjx.parameters import get_dynamic_parameters, set_dynamic_para
 import os
 import optax
 from mujoco.mjx._src.types import IntegratorType
+from _plotting_utils import plot_simulation_errors
 
 # SHOULD WE MOVE THIS IN TO MODULE INIT?
 xla_flags = os.environ.get("XLA_FLAGS", "")
@@ -40,7 +41,7 @@ rollout_trajectory = jax.jit(create_rollout(parameters_map))
 key = jax.random.PRNGKey(0)
 
 # Load the model
-MJCF_PATH = "models/pendulum.xml"
+MJCF_PATH = "models/pendulum_estimated.xml"
 model = mujoco.MjModel.from_xml_path(MJCF_PATH)
 data = mujoco.MjData(model)
 model.opt.integrator = IntegratorType.EULER
@@ -112,45 +113,19 @@ print(f"Batch simulation time: {t2 - t1} seconds")
 
 predicted_terminal_points = np.array(batched_states_trajectories)[:, -1, :]
 batched_states_trajectories = np.array(batched_states_trajectories).reshape(N_INTERVALS * HORIZON, 2)
-# Plotting simulation results for batсhed state trajectories
-plt.figure(figsize=(10, 5))
 
-plt.subplot(2, 2, 1)
-plt.plot(timespan, angle, label="Actual Angle", color="black", linestyle="dashed", linewidth=2)
-plt.plot(timespan, batched_states_trajectories[:, 0], alpha=0.5, color="blue", label="Simulated Angle")
-plt.plot(timespan, angle, label="Actual Angle", color="black", linestyle="dashed", linewidth=2)
-plt.plot(timespan[HORIZON + 1 :][::HORIZON], predicted_terminal_points[:-1, 0], "ob")
-plt.plot(timespan[HORIZON + 1 :][::HORIZON], interval_terminal_states[:, 0], "or")
-plt.ylabel("Angle (rad)")
-plt.grid(color="black", linestyle="--", linewidth=1.0, alpha=0.4)
-plt.legend()
-plt.title("Pendulum Dynamics - Bathed State Trajectories")
-
-plt.subplot(2, 2, 3)
-plt.plot(timespan, velocity, label="Actual Velocity", color="black", linestyle="dashed", linewidth=2)
-plt.plot(timespan[HORIZON + 1 :][::HORIZON], predicted_terminal_points[:-1, 1], "ob")
-plt.plot(timespan[HORIZON + 1 :][::HORIZON], interval_terminal_states[:, 1], "or")
-plt.plot(timespan, batched_states_trajectories[:, 1], alpha=0.5, color="blue", label="Simulated Velocity")
-plt.xlabel("Time (s)")
-plt.ylabel("Velocity (rad/s)")
-plt.grid(color="black", linestyle="--", linewidth=1.0, alpha=0.4)
-plt.legend()
-
-# Add phase portrait
-plt.subplot(1, 2, 2)
-plt.plot(angle, velocity, label="Actual", color="black", linestyle="dashed", linewidth=2)
-plt.plot(
-    batched_states_trajectories[:, 0], batched_states_trajectories[:, 1], alpha=0.5, color="blue", label="Simulated"
+# Replace the plotting section with:
+plot_simulation_errors(
+    timespan, 
+    angle, 
+    velocity, 
+    batched_states_trajectories, 
+    predicted_terminal_points, 
+    interval_terminal_states, 
+    HORIZON,
+    save_path="plots/simulation_error.png",
+    show=True
 )
-plt.plot(predicted_terminal_points[:-1, 0], predicted_terminal_points[:-1, 1], "ob")
-plt.plot(interval_terminal_states[:, 0], interval_terminal_states[:, 1], "or")
-plt.xlabel("Angle (rad)")
-plt.ylabel("Angular Velocity (rad/s)")
-plt.title("Phase Portrait")
-plt.grid(color="black", linestyle="--", linewidth=1.0, alpha=0.4)
-plt.legend()
 
-plt.tight_layout()
-plt.show()
 # TODO:
 # Optimization

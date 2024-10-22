@@ -108,7 +108,24 @@ def joint_body_regressor(mj_model, mj_data, body_id) -> npt.ArrayLike:
     return body_regressor(v, w, dv, dw)
 
 
-def get_jacobian(mjmodel, mjdata, bodyid):
+
+def get_jacobian(mjmodel: mujoco.MjModel, mjdata: mujoco.MjData, bodyid: int) -> np.ndarray:
+    """
+    Get the Jacobian matrix for a specific body in the MuJoCo model.
+
+    This function calculates the Jacobian matrix for a given body, which relates
+    the velocities of the body to the generalized velocities of the system.
+
+    Args:
+        mjmodel (mujoco.MjModel): The MuJoCo model.
+        mjdata (mujoco.MjData): The MuJoCo data.
+        bodyid (int): The ID of the body for which to calculate the Jacobian.
+
+    Returns:
+        np.ndarray: A 6xnv Jacobian matrix, where nv is the number of degrees of freedom.
+                    The first three rows correspond to linear velocities,
+                    and the last three rows correspond to angular velocities.
+    """
     R = mjdata.xmat[bodyid].reshape(3, 3)
 
     jac_lin, jac_rot = np.zeros((3, mjmodel.nv)), np.zeros((3, mjmodel.nv))
