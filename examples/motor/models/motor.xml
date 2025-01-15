@@ -1,0 +1,16 @@
+<mujoco model="motor">
+  <compiler angle="radian"/>
+
+  <option timestep="0.01" integrator="RK4"/>
+
+  <worldbody>
+    <body name="base">
+      <joint name="motor_joint" pos="0 0 0" axis="0 0 1" armature="0.03" damping="0.01" frictionloss="0.4"/>
+      <geom size="0.01"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <general name="motor" joint="motor_joint"/>
+  </actuator>
+</mujoco>

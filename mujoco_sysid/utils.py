@@ -112,6 +112,7 @@ def mjx2mujoco(mj_model, mjx_model) -> mujoco.MjModel:
     mj_model = copy.deepcopy(mj_model)
 
     # update dof_damping and dof_frictionloss
+    mj_model.dof_armature = mjx_model.dof_armature
     mj_model.dof_damping = mjx_model.dof_damping
     mj_model.dof_frictionloss = mjx_model.dof_frictionloss
 
